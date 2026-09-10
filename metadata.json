@@ -1,0 +1,7 @@
+{
+  "name": "Sistema de Rendición de Gastos Empresarial",
+  "description": "Sistema corporativo para la rendición y cuadre de gastos empresariales con OCR inteligente, límites presupuestales por centro de costos, aprobación jerárquica y exportación contable en Excel y PDF.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
