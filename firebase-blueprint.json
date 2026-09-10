@@ -1,0 +1,118 @@
+{
+  "entities": {
+    "Company": {
+      "title": "Company",
+      "description": "Configuración corporativa de la empresa, RUC, logo y cuentas bancarias",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "razonSocial": { "type": "string" },
+        "ruc": { "type": "string" },
+        "direccion": { "type": "string" },
+        "monedaPrincipal": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "cuentasBancarias": { "type": "array" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "razonSocial", "ruc"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Usuarios del sistema corporativo con sus roles y credenciales",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "roleLabel": { "type": "string" },
+        "avatar": { "type": "string" },
+        "departamento": { "type": "string" },
+        "cargo": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "username", "name", "role"]
+    },
+    "CostCenter": {
+      "title": "CostCenter",
+      "description": "Centros de costos y presupuestos corporativos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "nombre": { "type": "string" },
+        "responsable": { "type": "string" },
+        "presupuestoMensual": { "type": "number" },
+        "gastadoActual": { "type": "number" },
+        "alertaPorcentaje": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "codigo", "nombre", "presupuestoMensual"]
+    },
+    "Rendicion": {
+      "title": "Rendicion",
+      "description": "Rendición de gastos corporativa con comprobantes, recibo de cuadre y estados",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigoRendicion": { "type": "string" },
+        "colaboradorId": { "type": "string" },
+        "colaboradorNombre": { "type": "string" },
+        "departamento": { "type": "string" },
+        "fechaSolicitud": { "type": "string" },
+        "montoSolicitado": { "type": "number" },
+        "moneda": { "type": "string" },
+        "motivo": { "type": "string" },
+        "centroCostoId": { "type": "string" },
+        "centroCostoNombre": { "type": "string" },
+        "estado": { "type": "string" },
+        "estadoRevision": { "type": "string" },
+        "comprobantes": { "type": "array" },
+        "reciboSimple": { "type": "object" },
+        "totales": { "type": "object" },
+        "historialEstados": { "type": "array" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "codigoRendicion", "colaboradorId", "montoSolicitado", "estado"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Notificaciones del sistema y auditoría de aprobaciones",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tipo": { "type": "string" },
+        "titulo": { "type": "string" },
+        "mensaje": { "type": "string" },
+        "fecha": { "type": "string" },
+        "leido": { "type": "boolean" },
+        "rendicionId": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "tipo", "titulo", "mensaje", "fecha"]
+    }
+  },
+  "firestore": {
+    "/company/{companyId}": {
+      "schema": { "$ref": "#/entities/Company" },
+      "description": "Información de la empresa y configuración bancaria"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Usuarios y colaboradores con acceso al sistema"
+    },
+    "/costCenters/{costCenterId}": {
+      "schema": { "$ref": "#/entities/CostCenter" },
+      "description": "Centros de costo y control presupuestario"
+    },
+    "/rendiciones/{rendicionId}": {
+      "schema": { "$ref": "#/entities/Rendicion" },
+      "description": "Rendiciones de gastos y liquidaciones"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "Notificaciones y auditoría"
+    }
+  }
+}

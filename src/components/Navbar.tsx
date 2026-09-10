@@ -16,6 +16,8 @@ import {
   CheckCheck,
   BarChart3,
   Layers,
+  Cloud,
+  RefreshCw,
 } from 'lucide-react';
 import { User, CompanySettings, AppNotification } from '../types';
 
@@ -35,6 +37,9 @@ interface NavbarProps {
   allUsers: User[];
   isMobileMode: boolean;
   setIsMobileMode: (val: boolean) => void;
+  cloudStatus?: 'synced' | 'syncing' | 'offline' | 'error';
+  lastSyncTime?: string | null;
+  onManualSync?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -52,6 +57,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   allUsers,
   isMobileMode,
   setIsMobileMode,
+  cloudStatus = 'synced',
+  lastSyncTime,
+  onManualSync,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -192,6 +200,36 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Smartphone className="w-4 h-4" />
               <span className="hidden md:inline">Vista Móvil</span>
+            </button>
+
+            {/* Cloud Sync Status Indicator */}
+            <button
+              id="btn-cloud-sync"
+              onClick={onManualSync}
+              title={
+                cloudStatus === 'syncing'
+                  ? 'Sincronizando datos con la nube Firestore...'
+                  : cloudStatus === 'error'
+                  ? 'Error al conectar con la nube. Clic para reintentar.'
+                  : `Nube Firestore Activa. ${lastSyncTime ? `Última sincronización: ${lastSyncTime}` : 'Sincronizado'}. Clic para refrescar.`
+              }
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all border cursor-pointer active:scale-95 ${
+                cloudStatus === 'syncing'
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-500/40 animate-pulse'
+                  : cloudStatus === 'error'
+                  ? 'bg-rose-500/20 text-rose-200 border-rose-500/40'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30'
+              }`}
+            >
+              {cloudStatus === 'syncing' ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-300 shrink-0" />
+              ) : (
+                <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              )}
+              <span className="hidden md:inline text-xs">
+                {cloudStatus === 'syncing' ? 'Sincronizando...' : 'Nube'}
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 hidden sm:inline-block" />
             </button>
 
             {/* Company Settings */}

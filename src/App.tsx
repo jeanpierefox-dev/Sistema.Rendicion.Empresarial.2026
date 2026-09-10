@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   INITIAL_COMPANY,
   INITIAL_USERS,
@@ -16,6 +16,11 @@ import {
   ExpenseItem,
   DestinatarioAccount,
 } from './types';
+import {
+  subscribeToCloudState,
+  saveToCloud,
+  CloudStatePayload,
+} from './lib/firebase';
 import { Navbar } from './components/Navbar';
 import { LoginModal } from './components/LoginModal';
 import { CompanySettingsModal } from './components/CompanySettingsModal';
@@ -28,7 +33,7 @@ import { RestoreSystemModal } from './components/RestoreSystemModal';
 import { CostCenterLimitsView } from './components/CostCenterLimitsView';
 import { HierarchicalApprovalView } from './components/HierarchicalApprovalView';
 import { AnalyticsView } from './components/AnalyticsView';
-import { CheckCircle2, AlertTriangle, Bell, Shield } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Bell, Shield, Plus, Camera, Cloud, RefreshCw } from 'lucide-react';
 
 export default function App() {
   // Local storage hydrated states for users
@@ -120,10 +125,120 @@ export default function App() {
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
 
+  // Cloud Firestore synchronization state
+  const [cloudStatus, setCloudStatus] = useState<'synced' | 'syncing' | 'offline' | 'error'>('syncing');
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const isSyncingFromCloud = useRef(false);
+  const cloudSaveTimer = useRef<NodeJS.Timeout | null>(null);
+
   // Toast alert
   const [toastMessage, setToastMessage] = useState<{ title: string; body: string; type: 'success' | 'alert' } | null>(null);
 
-  // Persistence to localStorage
+  // Real-time Cloud Synchronization Listener (Multi-device access from any phone or PC)
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    try {
+      unsubscribe = subscribeToCloudState(
+        (cloudData) => {
+          if (cloudData && (cloudData.rendiciones || cloudData.users || cloudData.company)) {
+            isSyncingFromCloud.current = true;
+            if (cloudData.company) setCompany(cloudData.company);
+            if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
+            if (cloudData.costCenters && cloudData.costCenters.length > 0) setCostCenters(cloudData.costCenters);
+            if (cloudData.rendiciones) setRendiciones(cloudData.rendiciones);
+            if (cloudData.notifications) setNotifications(cloudData.notifications);
+            setCloudStatus('synced');
+            setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            setTimeout(() => {
+              isSyncingFromCloud.current = false;
+            }, 300);
+          } else {
+            // First time running on Firestore: seed initial data to the cloud
+            saveToCloud({
+              company,
+              users,
+              costCenters,
+              rendiciones,
+              notifications,
+            })
+              .then(() => {
+                setCloudStatus('synced');
+                setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+              })
+              .catch((err) => {
+                console.warn('Advertencia al sembrar datos iniciales en Firestore:', err);
+                setCloudStatus('offline');
+              });
+          }
+        },
+        (error) => {
+          console.warn('Estado del canal de sincronización Firestore:', error);
+          setCloudStatus('offline');
+        }
+      );
+    } catch (e) {
+      console.warn('Error inicializando suscriptor de la nube:', e);
+      setCloudStatus('offline');
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  // Function to dispatch updates to Firestore with debouncing
+  const triggerCloudSave = (partial?: Partial<CloudStatePayload>) => {
+    if (isSyncingFromCloud.current) return;
+    setCloudStatus('syncing');
+
+    if (cloudSaveTimer.current) {
+      clearTimeout(cloudSaveTimer.current);
+    }
+
+    cloudSaveTimer.current = setTimeout(async () => {
+      try {
+        await saveToCloud({
+          company,
+          users,
+          costCenters,
+          rendiciones,
+          notifications,
+          ...partial,
+        });
+        setCloudStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } catch (err) {
+        console.warn('No se pudo sincronizar con Firestore:', err);
+        setCloudStatus('offline');
+      }
+    }, 750);
+  };
+
+  // Manual cloud refresh / synchronization
+  const handleManualSync = async () => {
+    setCloudStatus('syncing');
+    try {
+      await saveToCloud({
+        company,
+        users,
+        costCenters,
+        rendiciones,
+        notifications,
+      });
+      setCloudStatus('synced');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncTime(timeStr);
+      showToast(
+        'Nube Sincronizada',
+        `Datos asegurados en Firebase Firestore. Accesible desde cualquier dispositivo móvil o PC (${timeStr})`
+      );
+    } catch (err) {
+      setCloudStatus('error');
+      showToast('Error de Conexión', 'No se pudo conectar con Firestore en este momento.', 'alert');
+    }
+  };
+
+  // Persistence to localStorage (Local cache for instant offline startup)
   useEffect(() => {
     localStorage.setItem('corpgastos_users', JSON.stringify(users));
   }, [users]);
@@ -155,6 +270,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(destinatarioAccounts));
   }, [destinatarioAccounts]);
+
+  // Auto-sync local state modifications to Cloud Firestore
+  useEffect(() => {
+    if (isSyncingFromCloud.current) return;
+    triggerCloudSave();
+  }, [rendiciones, costCenters, company, users, notifications]);
 
   const handleAddDestinatarioAccount = (account: DestinatarioAccount) => {
     setDestinatarioAccounts((prev) => [account, ...prev]);
@@ -598,11 +719,8 @@ export default function App() {
 
     if (mode === 'clean_slate') {
       // Clean slate: 0 rendiciones, next code strictly starts from REND-001
-      setRendiciones([]);
-      setCostCenters(INITIAL_COST_CENTERS.map((c) => ({ ...c, spentAmount: 0 })));
-      setCompany(INITIAL_COMPANY);
-      setDestinatarioAccounts(INITIAL_DESTINATARIO_ACCOUNTS);
-      setNotifications([
+      const resetCostCenters = INITIAL_COST_CENTERS.map((c) => ({ ...c, spentAmount: 0 }));
+      const newNotifs: AppNotification[] = [
         {
           id: `notif-${Date.now()}`,
           timestamp: 'Hace unos momentos',
@@ -611,7 +729,18 @@ export default function App() {
           tipo: 'aprobacion',
           leido: false,
         },
-      ]);
+      ];
+      setRendiciones([]);
+      setCostCenters(resetCostCenters);
+      setCompany(INITIAL_COMPANY);
+      setDestinatarioAccounts(INITIAL_DESTINATARIO_ACCOUNTS);
+      setNotifications(newNotifs);
+      triggerCloudSave({
+        rendiciones: [],
+        costCenters: resetCostCenters,
+        company: INITIAL_COMPANY,
+        notifications: newNotifs,
+      });
       showToast('Sistema en Blanco', 'Base de datos reiniciada. El próximo registro será REND-001.');
     } else {
       // Reset to initial demo with codes starting at REND-001
@@ -620,6 +749,12 @@ export default function App() {
       setCompany(INITIAL_COMPANY);
       setDestinatarioAccounts(INITIAL_DESTINATARIO_ACCOUNTS);
       setNotifications(INITIAL_NOTIFICATIONS);
+      triggerCloudSave({
+        rendiciones: INITIAL_RENDICIONES,
+        costCenters: INITIAL_COST_CENTERS,
+        company: INITIAL_COMPANY,
+        notifications: INITIAL_NOTIFICATIONS,
+      });
       showToast('Sistema Restaurado', 'Se cargaron los datos de ejemplo iniciales (REND-001 al REND-004).');
     }
     setSelectedRendicionId(null);
@@ -651,10 +786,13 @@ export default function App() {
         allUsers={users}
         isMobileMode={isMobileMode}
         setIsMobileMode={setIsMobileMode}
+        cloudStatus={cloudStatus}
+        lastSyncTime={lastSyncTime}
+        onManualSync={handleManualSync}
       />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 pb-20 sm:pb-8">
         {activeTab === 'rendiciones' && (
           <RendicionesListView
             rendiciones={rendiciones}
@@ -696,6 +834,28 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Mobile Floating Quick Actions (for mobile devices) */}
+      <div className="sm:hidden fixed bottom-4 right-4 z-40 flex flex-col items-end space-y-2">
+        <button
+          id="btn-mobile-ocr"
+          onClick={() => setIsOcrModalOpen(true)}
+          title="Escanear Comprobante con Cámara o Archivo"
+          className="px-3.5 py-2.5 bg-slate-900 text-white rounded-full shadow-lg border border-slate-700 flex items-center space-x-2 text-xs font-bold active:scale-95 transition-transform"
+        >
+          <Camera className="w-4 h-4 text-amber-400" />
+          <span>Escanear</span>
+        </button>
+        <button
+          id="btn-mobile-new-rendicion"
+          onClick={() => setIsNewModalOpen(true)}
+          title="Crear Nueva Rendición"
+          className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xl flex items-center space-x-2 text-xs font-bold active:scale-95 transition-transform"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Rendición</span>
+        </button>
+      </div>
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-4 px-4 sm:px-6 text-center text-xs text-slate-500">

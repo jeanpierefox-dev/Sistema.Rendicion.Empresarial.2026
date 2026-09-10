@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permite lectura y sincronización de datos de la empresa, rendiciones, usuarios y centros de costos desde cualquier dispositivo
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
