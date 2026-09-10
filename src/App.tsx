@@ -211,6 +211,26 @@ export default function App() {
     showToast('Usuario Creado', `Se registró al usuario ${newUser.name} (${newUser.username})`);
   };
 
+  const handleDeleteUser = (userId: string) => {
+    if (currentUser?.id === userId) {
+      showToast('Acción No Permitida', 'No puedes eliminar tu propio usuario en la sesión activa.', 'alert');
+      return;
+    }
+    const targetUser = users.find((u) => u.id === userId);
+    if (!targetUser) return;
+
+    if (targetUser.role === 'admin') {
+      const adminCount = users.filter((u) => u.role === 'admin').length;
+      if (adminCount <= 1) {
+        showToast('Acción Denegada', 'No es posible eliminar el único administrador del sistema.', 'alert');
+        return;
+      }
+    }
+
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    showToast('Usuario Eliminado', `Se eliminó al usuario ${targetUser.name} (@${targetUser.username})`);
+  };
+
   // Rendiciones Handlers
   const handleCreateRendicion = (data: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>) => {
     const newRend: Rendicion = {
@@ -742,6 +762,7 @@ export default function App() {
         currentUser={currentUser}
         onUpdateUser={handleUpdateUser}
         onAddUser={handleAddUser}
+        onDeleteUser={handleDeleteUser}
       />
 
       {/* New Rendición Modal */}
