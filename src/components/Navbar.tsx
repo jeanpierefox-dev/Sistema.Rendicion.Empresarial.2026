@@ -70,35 +70,35 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md">
       {/* Top Corporate Strip */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-4 lg:px-8">
+        <div className="flex items-center justify-between h-13 sm:h-14">
           {/* Company Brand & Logo */}
           <div
-            className="flex items-center space-x-3 cursor-pointer select-none group"
+            className="flex items-center space-x-2 sm:space-x-2.5 cursor-pointer select-none group min-w-0"
             onClick={() => setActiveTab('rendiciones')}
           >
             {company.logoUrl ? (
               <img
                 src={company.logoUrl}
                 alt="Logo Corporativo"
-                className="h-9 w-9 sm:h-10 sm:w-10 object-contain rounded-xl bg-white p-1 ring-1 ring-white/20 shadow-xs group-hover:scale-105 transition-transform"
+                className="h-7 w-7 sm:h-8 sm:w-8 object-contain rounded-lg bg-white p-0.5 ring-1 ring-white/20 shadow-2xs group-hover:scale-105 transition-transform shrink-0"
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-md font-bold text-lg shrink-0 group-hover:scale-105 transition-transform">
-                <Building2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-2xs font-bold text-xs shrink-0 group-hover:scale-105 transition-transform">
+                <Building2 className="w-4 h-4" />
               </div>
             )}
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-white line-clamp-1 group-hover:text-indigo-200 transition-colors">
+            <div className="min-w-0">
+              <div className="flex items-center space-x-1.5">
+                <span className="font-bold text-xs sm:text-sm tracking-tight text-white truncate max-w-[110px] xs:max-w-[160px] sm:max-w-[240px] md:max-w-xs group-hover:text-indigo-200 transition-colors">
                   {company.razonSocial}
                 </span>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 text-[11px] font-bold bg-indigo-500/25 text-indigo-200 rounded-md border border-indigo-400/30 font-mono tracking-wider">
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.2 text-[10px] font-bold bg-indigo-500/20 text-indigo-200 rounded border border-indigo-400/25 font-mono tracking-wider">
                   RUC {company.ruc}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 font-medium hidden xs:flex items-center space-x-1.5 line-clamp-1">
+              <p className="text-[10px] text-slate-400 font-normal hidden md:flex items-center space-x-1.5 truncate">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 inline-block animate-pulse" />
                 <span>Plataforma Corporativa de Rendición & Gastos</span>
               </p>
@@ -106,62 +106,62 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center space-x-1.5">
+          <nav className="hidden lg:flex items-center space-x-1">
             <button
               id="nav-tab-rendiciones"
               onClick={() => setActiveTab('rendiciones')}
-              className={`px-3 py-2 rounded-lg text-xs xl:text-sm font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 activeTab === 'rendiciones'
-                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-xs'
-                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white font-semibold'
+                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-2xs'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
               }`}
             >
-              <Receipt className="w-4 h-4 text-indigo-400 shrink-0" />
+              <Receipt className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span>Rendiciones & Gastos</span>
             </button>
             <button
               id="nav-tab-aprobaciones"
               onClick={() => setActiveTab('aprobaciones')}
-              className={`px-3 py-2 rounded-lg text-xs xl:text-sm font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 activeTab === 'aprobaciones'
-                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-xs'
-                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white font-semibold'
+                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-2xs'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
               }`}
             >
-              <CheckCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <CheckCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Aprobaciones</span>
-              <span className="px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
+              <span className="px-1 py-0.2 text-[8px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded">
                 Móvil
               </span>
             </button>
             <button
               id="nav-tab-centros"
               onClick={() => setActiveTab('centros_costos')}
-              className={`px-3 py-2 rounded-lg text-xs xl:text-sm font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 activeTab === 'centros_costos'
-                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-xs'
-                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white font-semibold'
+                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-2xs'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
               }`}
             >
-              <Layers className="w-4 h-4 text-cyan-400 shrink-0" />
+              <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span>Límites & CC</span>
             </button>
             <button
               id="nav-tab-analitica"
               onClick={() => setActiveTab('analitica')}
-              className={`px-3 py-2 rounded-lg text-xs xl:text-sm font-bold transition-all flex items-center space-x-2 cursor-pointer ${
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center space-x-1.5 cursor-pointer ${
                 activeTab === 'analitica'
-                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-xs'
-                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white font-semibold'
+                  ? 'bg-slate-800 text-white border-b-2 border-indigo-400 shadow-2xs'
+                  : 'text-slate-300 hover:bg-slate-800/60 hover:text-white'
               }`}
             >
-              <BarChart3 className="w-4 h-4 text-violet-400 shrink-0" />
-              <span>Analítica & Reportes</span>
+              <BarChart3 className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+              <span>Analítica</span>
             </button>
           </nav>
 
-          {/* Right actions: User Management (Admin only), Mobile View, Settings, Notifications, Profile */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+          {/* Right actions: User Management (Admin), Restore, Cloud, Settings, Notifications, Profile */}
+          <div className="flex items-center space-x-1 sm:space-x-1.5">
             {/* User Management and Restore buttons (Exclusively visible/accessible for Admin) */}
             {isAdmin && (
               <>
@@ -169,37 +169,37 @@ export const Navbar: React.FC<NavbarProps> = ({
                   id="btn-user-management"
                   onClick={onOpenUserManagement}
                   title="Gestión de Usuarios (Crear, Editar, Eliminar y Fotos)"
-                  className="px-2.5 py-1.5 rounded-lg bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-bold shadow-xs active:scale-95"
+                  className="p-1.5 sm:px-2 sm:py-1 rounded-lg bg-indigo-600/25 text-indigo-200 border border-indigo-500/35 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer flex items-center space-x-1 text-[11px] font-semibold active:scale-95 shrink-0"
                 >
-                  <Users className="w-4 h-4 text-indigo-300" />
-                  <span>Usuarios</span>
+                  <Users className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                  <span className="hidden md:inline">Usuarios</span>
                 </button>
 
                 <button
                   id="btn-restaurar-sistema"
                   onClick={onOpenRestoreSystem}
                   title="Restaurar Sistema a Valores de Fábrica (Exclusivo Administrador)"
-                  className="px-2.5 py-1.5 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-500/40 hover:bg-rose-600 hover:text-white transition-all cursor-pointer flex items-center space-x-1.5 text-xs font-bold shadow-xs active:scale-95"
+                  className="p-1.5 sm:px-2 sm:py-1 rounded-lg bg-rose-500/20 text-rose-200 border border-rose-500/35 hover:bg-rose-600 hover:text-white transition-all cursor-pointer flex items-center space-x-1 text-[11px] font-semibold active:scale-95 shrink-0"
                 >
-                  <RotateCcw className="w-4 h-4 text-rose-300" />
-                  <span>Restaurar</span>
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-300 shrink-0" />
+                  <span className="hidden md:inline">Restaurar</span>
                 </button>
               </>
             )}
 
-            {/* Mobile View Simulator Toggle */}
+            {/* Mobile View Simulator Toggle (Only on large PC screens) */}
             <button
               id="btn-toggle-mobile-view"
               onClick={() => setIsMobileMode(!isMobileMode)}
               title="Alternar Vista Móvil de Aprobación"
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all border cursor-pointer active:scale-95 ${
+              className={`hidden xl:flex items-center space-x-1 px-2 py-1 rounded-lg text-[11px] font-semibold transition-all border cursor-pointer active:scale-95 shrink-0 ${
                 isMobileMode
-                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-2xs'
                   : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700 hover:text-white'
               }`}
             >
-              <Smartphone className="w-4 h-4" />
-              <span className="hidden md:inline">Vista Móvil</span>
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>Vista Móvil</span>
             </button>
 
             {/* Cloud Sync Status Indicator */}
@@ -213,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'Error al conectar con la nube. Clic para reintentar.'
                   : `Nube Firestore Activa. ${lastSyncTime ? `Última sincronización: ${lastSyncTime}` : 'Sincronizado'}. Clic para refrescar.`
               }
-              className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all border cursor-pointer active:scale-95 ${
+              className={`p-1.5 sm:px-2 sm:py-1 rounded-lg text-[11px] font-semibold flex items-center space-x-1 transition-all border cursor-pointer active:scale-95 shrink-0 ${
                 cloudStatus === 'syncing'
                   ? 'bg-amber-500/20 text-amber-200 border-amber-500/40 animate-pulse'
                   : cloudStatus === 'error'
@@ -226,7 +226,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               ) : (
                 <Cloud className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               )}
-              <span className="hidden md:inline text-xs">
+              <span className="hidden md:inline">
                 {cloudStatus === 'syncing' ? 'Sincronizando...' : 'Nube'}
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 hidden sm:inline-block" />
@@ -237,22 +237,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="btn-open-settings"
               onClick={onOpenSettings}
               title="Configuración de la Empresa, Cuentas Bancarias y Logo"
-              className="p-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shrink-0"
             >
-              <Sliders className="w-4 h-4" />
+              <Sliders className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Notifications Bell */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 id="btn-toggle-notifications"
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="p-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white relative transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white relative transition-colors cursor-pointer"
                 title="Notificaciones en tiempo real"
               >
-                <Bell className="w-4 h-4" />
+                <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-pulse">
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center animate-pulse">
                     {unreadCount}
                   </span>
                 )}
@@ -316,36 +316,37 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Current User & Role Switcher */}
             {currentUser && (
-              <div className="relative">
+              <div className="relative shrink-0">
                 <button
                   id="btn-user-profile"
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2.5 pl-1.5 sm:pl-2 pr-2 sm:pr-3 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-750 transition-colors cursor-pointer"
+                  title={`Usuario activo: ${currentUser.name} (${currentUser.roleLabel})`}
+                  className="flex items-center space-x-1.5 p-1 sm:pl-1.5 sm:pr-2.5 sm:py-1 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 transition-colors cursor-pointer"
                 >
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name}
-                    className="w-7 h-7 rounded-full object-cover ring-2 ring-indigo-400/50 shadow-xs"
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover ring-1.5 ring-indigo-400/50 shadow-2xs shrink-0"
                     referrerPolicy="no-referrer"
                   />
                   <div className="text-left hidden md:block">
-                    <p className="text-xs font-bold text-white tracking-tight leading-snug">
+                    <p className="text-xs font-semibold text-white tracking-tight leading-snug truncate max-w-[110px]">
                       {currentUser.name}
                     </p>
-                    <p className="text-[10px] text-indigo-300 font-semibold tracking-wider uppercase leading-none mt-0.5">
+                    <p className="text-[9px] text-indigo-300 font-medium tracking-wider uppercase leading-none mt-0.5">
                       {currentUser.roleLabel}
                     </p>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3 h-3 text-slate-400 hidden md:block" />
                 </button>
 
                 {/* User Dropdown */}
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 text-slate-800 z-50 overflow-hidden">
                     <div className="p-3 bg-slate-50 border-b border-slate-100">
-                      <p className="text-xs text-slate-500 font-medium">Sesión Actual</p>
-                      <p className="text-sm font-bold text-slate-900">{currentUser.name}</p>
-                      <p className="text-xs text-indigo-600 font-semibold">{currentUser.roleLabel}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Sesión Actual</p>
+                      <p className="text-xs font-bold text-slate-900 mt-0.5">{currentUser.name}</p>
+                      <p className="text-[11px] text-indigo-600 font-semibold">{currentUser.roleLabel}</p>
                       <span className="inline-flex items-center mt-1 text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">
                         Usuario: {currentUser.username}
                       </span>
@@ -426,50 +427,50 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile navigation tab bar */}
-      <div className="lg:hidden border-t border-slate-800 bg-slate-900/95 px-2 py-1.5 flex items-center justify-around overflow-x-auto text-xs gap-1">
+      <div className="lg:hidden border-t border-slate-800 bg-slate-900 px-1.5 py-1 flex items-center justify-around text-xs gap-1">
         <button
           onClick={() => setActiveTab('rendiciones')}
-          className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap cursor-pointer flex items-center space-x-1.5 transition-colors ${
+          className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-center space-y-0.5 sm:space-y-0 sm:space-x-1.5 transition-colors cursor-pointer ${
             activeTab === 'rendiciones'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-300 hover:bg-slate-800'
+              ? 'bg-indigo-600 text-white shadow-2xs'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
-          <Receipt className="w-3.5 h-3.5" />
-          <span>Rendiciones</span>
+          <Receipt className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Rendiciones</span>
         </button>
         <button
           onClick={() => setActiveTab('aprobaciones')}
-          className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap cursor-pointer flex items-center space-x-1.5 transition-colors ${
+          className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-center space-y-0.5 sm:space-y-0 sm:space-x-1.5 transition-colors cursor-pointer ${
             activeTab === 'aprobaciones'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-300 hover:bg-slate-800'
+              ? 'bg-indigo-600 text-white shadow-2xs'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
-          <CheckCheck className="w-3.5 h-3.5" />
-          <span>Aprobaciones</span>
+          <CheckCheck className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Aprobaciones</span>
         </button>
         <button
           onClick={() => setActiveTab('centros_costos')}
-          className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap cursor-pointer flex items-center space-x-1.5 transition-colors ${
+          className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-center space-y-0.5 sm:space-y-0 sm:space-x-1.5 transition-colors cursor-pointer ${
             activeTab === 'centros_costos'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-300 hover:bg-slate-800'
+              ? 'bg-indigo-600 text-white shadow-2xs'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Límites & CC</span>
+          <Layers className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Límites & CC</span>
         </button>
         <button
           onClick={() => setActiveTab('analitica')}
-          className={`px-3 py-1.5 rounded-lg font-bold whitespace-nowrap cursor-pointer flex items-center space-x-1.5 transition-colors ${
+          className={`flex-1 py-1.5 px-1 rounded-lg text-[11px] font-semibold flex flex-col sm:flex-row items-center justify-center space-y-0.5 sm:space-y-0 sm:space-x-1.5 transition-colors cursor-pointer ${
             activeTab === 'analitica'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-300 hover:bg-slate-800'
+              ? 'bg-indigo-600 text-white shadow-2xs'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
           }`}
         >
-          <BarChart3 className="w-3.5 h-3.5" />
-          <span>Analítica</span>
+          <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+          <span className="truncate">Analítica</span>
         </button>
       </div>
     </header>
