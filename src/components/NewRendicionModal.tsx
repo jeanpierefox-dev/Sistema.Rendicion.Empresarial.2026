@@ -11,14 +11,28 @@ import {
   FileCheck2,
   Plus,
   Check,
+  Layers,
+  FileText,
+  CheckCircle2,
 } from 'lucide-react';
-import { Rendicion, CostCenter, User, CompanySettings, DestinatarioAccount } from '../types';
+import {
+  Rendicion,
+  CostCenter,
+  User,
+  CompanySettings,
+  DestinatarioAccount,
+  SurplusExpenseItem,
+  ExpenseItem,
+} from '../types';
 import { SignaturePadModal } from './SignaturePadModal';
 
 interface NewRendicionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (rendicionData: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>) => void;
+  onCreate: (
+    rendicionData: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>,
+    initialItems?: ExpenseItem[]
+  ) => void;
   costCenters: CostCenter[];
   currentUser: User | null;
   allUsers: User[];
@@ -26,6 +40,8 @@ interface NewRendicionModalProps {
   nextCode: string;
   destinatarioAccounts?: DestinatarioAccount[];
   onAddDestinatarioAccount?: (account: DestinatarioAccount) => void;
+  availableSurplus?: SurplusExpenseItem[];
+  preselectedSurplus?: SurplusExpenseItem[];
 }
 
 export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
@@ -39,6 +55,8 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   nextCode,
   destinatarioAccounts = [],
   onAddDestinatarioAccount,
+  availableSurplus = [],
+  preselectedSurplus = [],
 }) => {
   const [titulo, setTitulo] = useState('');
   const [colaboradorId, setColaboradorId] = useState(currentUser?.id || allUsers[0]?.id || 'usr-3');
@@ -79,6 +97,49 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   const [newAccNumero, setNewAccNumero] = useState('');
   const [newAccCci, setNewAccCci] = useState('');
   const [newAccAlias, setNewAccAlias] = useState('');
+
+  // Combined surplus list
+  const allSurplusList = React.useMemo(() => {
+    const map = new Map<string, SurplusExpenseItem>();
+    availableSurplus.forEach((s) => map.set(s.id, s));
+    preselectedSurplus.forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
+  }, [availableSurplus, preselectedSurplus]);
+
+  const [selectedSurplusIds, setSelectedSurplusIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (preselectedSurplus && preselectedSurplus.length > 0) {
+      setSelectedSurplusIds(new Set(preselectedSurplus.map((s) => s.id)));
+      const sumSurplus = preselectedSurplus.reduce((acc, i) => acc + i.montoTotal, 0);
+      setMontoAsignado(Number(sumSurplus.toFixed(2)));
+      setTitulo((prev) =>
+        prev.trim()
+          ? prev
+          : `Rendición Sobrantes ${preselectedSurplus[0]?.origenCodigoRendicion ? `(${preselectedSurplus[0].origenCodigoRendicion})` : ''}`
+      );
+    } else {
+      setSelectedSurplusIds(new Set());
+    }
+  }, [isOpen, preselectedSurplus]);
+
+  const selectedSurplusItems = React.useMemo(() => {
+    return allSurplusList.filter((s) => selectedSurplusIds.has(s.id));
+  }, [allSurplusList, selectedSurplusIds]);
+
+  const totalSelectedSurplus = React.useMemo(() => {
+    return Number(selectedSurplusItems.reduce((acc, i) => acc + i.montoTotal, 0).toFixed(2));
+  }, [selectedSurplusItems]);
+
+  const toggleSurplusItem = (id: string) => {
+    setSelectedSurplusIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Sync selected user details and recipient accounts
   useEffect(() => {
@@ -190,7 +251,7 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
       estado: 'borrador',
       firmaResponsable,
       fechaFirmaResponsable,
-    });
+    }, selectedSurplusItems.length > 0 ? selectedSurplusItems : undefined);
 
     onClose();
   };
@@ -644,6 +705,119 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* SECCIÓN DOCUMENTOS SOBRANTES / EXCEDENTES */}
+            {allSurplusList.length > 0 && (
+              <div className="p-3.5 bg-gradient-to-r from-amber-50 to-indigo-50/60 rounded-xl border border-amber-200/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 flex items-center space-x-1.5">
+                        <span>Comprobantes Sobrantes Disponibles ({allSurplusList.length})</span>
+                        <span className="px-1.5 py-0.2 bg-amber-200 text-amber-900 text-[10px] rounded font-bold">
+                          Fuera de planilla previa
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-600">
+                        Marque los documentos excedentes que desea incorporar a esta nueva rendición
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-1.5 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedSurplusIds.size === allSurplusList.length) {
+                          setSelectedSurplusIds(new Set());
+                        } else {
+                          setSelectedSurplusIds(new Set(allSurplusList.map((s) => s.id)));
+                        }
+                      }}
+                      className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-300 rounded cursor-pointer"
+                    >
+                      {selectedSurplusIds.size === allSurplusList.length ? 'Deseleccionar' : 'Marcar Todos'}
+                    </button>
+
+                    {totalSelectedSurplus > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMontoAsignado(totalSelectedSurplus)}
+                        className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded shadow-xs cursor-pointer flex items-center space-x-1"
+                        title="Igualar el monto desembolsado al total de los comprobantes seleccionados"
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-emerald-300" />
+                        <span>Fijar Desembolso a S/ {totalSelectedSurplus.toFixed(2)}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="max-h-44 overflow-y-auto divide-y divide-slate-200/80 bg-white rounded-lg border border-slate-200 shadow-2xs">
+                  {allSurplusList.map((item) => {
+                    const isChecked = selectedSurplusIds.has(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => toggleSurplusItem(item.id)}
+                        className={`p-2.5 flex items-center justify-between transition-colors cursor-pointer select-none text-xs ${
+                          isChecked ? 'bg-indigo-50/50 hover:bg-indigo-50' : 'bg-slate-50/60 hover:bg-slate-100 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 truncate">
+                                {item.razonSocial || item.detalle}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-mono">
+                                {item.tipoDocumento} • {item.numeroComprobante}
+                              </span>
+                              {item.origenCodigoRendicion && (
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-mono">
+                                  Origen: {item.origenCodigoRendicion}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                              {item.fecha} — {item.clasificacionGasto}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`font-mono font-bold text-xs ${
+                              isChecked ? 'text-indigo-900' : 'text-slate-400'
+                            }`}
+                          >
+                            S/ {item.montoTotal.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between text-xs px-1 text-slate-700 font-medium">
+                  <span>
+                    Seleccionados para esta rendición: <strong>{selectedSurplusItems.length}</strong> de {allSurplusList.length}
+                  </span>
+                  <span className="font-mono font-bold text-indigo-900">
+                    Suma: S/ {totalSelectedSurplus.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Firma Digital del Responsable */}
             <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

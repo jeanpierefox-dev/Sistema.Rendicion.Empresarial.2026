@@ -15,6 +15,7 @@ import {
   AppNotification,
   ExpenseItem,
   DestinatarioAccount,
+  SurplusExpenseItem,
 } from './types';
 import {
   subscribeToCloudState,
@@ -125,10 +126,23 @@ export default function App() {
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
 
+  // Estado para documentos sobrantes (gastos excedentes que quedan fuera del cuadre para nuevas rendiciones)
+  const [surplusExpenses, setSurplusExpenses] = useState<SurplusExpenseItem[]>(() => {
+    const saved = localStorage.getItem('corpgastos_surplus_expenses');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return [];
+  });
+  const [surplusForNewRendicion, setSurplusForNewRendicion] = useState<SurplusExpenseItem[]>([]);
+
   // Cloud Firestore synchronization state
   const [cloudStatus, setCloudStatus] = useState<'synced' | 'syncing' | 'offline' | 'error'>('syncing');
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const isSyncingFromCloud = useRef(false);
+  const hasLoadedInitialCloud = useRef(false);
   const cloudSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Toast alert
@@ -146,29 +160,38 @@ export default function App() {
             if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
             if (cloudData.costCenters && cloudData.costCenters.length > 0) setCostCenters(cloudData.costCenters);
             if (cloudData.rendiciones) setRendiciones(cloudData.rendiciones);
+            if (cloudData.surplusExpenses) setSurplusExpenses(cloudData.surplusExpenses);
+            if (cloudData.destinatarioAccounts) setDestinatarioAccounts(cloudData.destinatarioAccounts);
             if (cloudData.notifications) setNotifications(cloudData.notifications);
+
+            hasLoadedInitialCloud.current = true;
             setCloudStatus('synced');
             setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
             setTimeout(() => {
               isSyncingFromCloud.current = false;
-            }, 300);
+            }, 350);
           } else {
-            // First time running on Firestore: seed initial data to the cloud
-            saveToCloud({
-              company,
-              users,
-              costCenters,
-              rendiciones,
-              notifications,
-            })
-              .then(() => {
-                setCloudStatus('synced');
-                setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            // First time running on Firestore: seed initial data to the cloud ONLY if never loaded
+            if (!hasLoadedInitialCloud.current) {
+              hasLoadedInitialCloud.current = true;
+              saveToCloud({
+                company,
+                users,
+                costCenters,
+                rendiciones,
+                surplusExpenses,
+                destinatarioAccounts,
+                notifications,
               })
-              .catch((err) => {
-                console.warn('Advertencia al sembrar datos iniciales en Firestore:', err);
-                setCloudStatus('offline');
-              });
+                .then(() => {
+                  setCloudStatus('synced');
+                  setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                })
+                .catch((err) => {
+                  console.warn('Advertencia al sembrar datos iniciales en Firestore:', err);
+                  setCloudStatus('offline');
+                });
+            }
           }
         },
         (error) => {
@@ -186,9 +209,9 @@ export default function App() {
     };
   }, []);
 
-  // Function to dispatch updates to Firestore with debouncing
-  const triggerCloudSave = (partial?: Partial<CloudStatePayload>) => {
-    if (isSyncingFromCloud.current) return;
+  // Function to dispatch updates to Firestore safely without race conditions
+  const dispatchCloudSave = (partial?: Partial<CloudStatePayload>) => {
+    if (isSyncingFromCloud.current || !hasLoadedInitialCloud.current) return;
     setCloudStatus('syncing');
 
     if (cloudSaveTimer.current) {
@@ -202,6 +225,8 @@ export default function App() {
           users,
           costCenters,
           rendiciones,
+          surplusExpenses,
+          destinatarioAccounts,
           notifications,
           ...partial,
         });
@@ -211,7 +236,7 @@ export default function App() {
         console.warn('No se pudo sincronizar con Firestore:', err);
         setCloudStatus('offline');
       }
-    }, 750);
+    }, 400);
   };
 
   // Manual cloud refresh / synchronization
@@ -223,6 +248,8 @@ export default function App() {
         users,
         costCenters,
         rendiciones,
+        surplusExpenses,
+        destinatarioAccounts,
         notifications,
       });
       setCloudStatus('synced');
@@ -264,6 +291,10 @@ export default function App() {
   }, [rendiciones]);
 
   useEffect(() => {
+    localStorage.setItem('corpgastos_surplus_expenses', JSON.stringify(surplusExpenses));
+  }, [surplusExpenses]);
+
+  useEffect(() => {
     localStorage.setItem('corpgastos_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
@@ -271,14 +302,10 @@ export default function App() {
     localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(destinatarioAccounts));
   }, [destinatarioAccounts]);
 
-  // Auto-sync local state modifications to Cloud Firestore
-  useEffect(() => {
-    if (isSyncingFromCloud.current) return;
-    triggerCloudSave();
-  }, [rendiciones, costCenters, company, users, notifications]);
-
   const handleAddDestinatarioAccount = (account: DestinatarioAccount) => {
-    setDestinatarioAccounts((prev) => [account, ...prev]);
+    const updated = [account, ...destinatarioAccounts];
+    setDestinatarioAccounts(updated);
+    dispatchCloudSave({ destinatarioAccounts: updated });
     showToast('Cuenta de Destinatario Registrada', `Se guardó la cuenta de ${account.nombreDestinatario} (${account.banco})`);
   };
 
@@ -320,15 +347,19 @@ export default function App() {
 
   // User Management Handlers (Admin Only)
   const handleUpdateUser = (updatedUser: User) => {
-    setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
+    const updatedUsers = users.map((u) => (u.id === updatedUser.id ? updatedUser : u));
+    setUsers(updatedUsers);
     if (currentUser?.id === updatedUser.id) {
       setCurrentUser(updatedUser);
     }
+    dispatchCloudSave({ users: updatedUsers });
     showToast('Usuario Actualizado', `Se guardaron los cambios para ${updatedUser.name}`);
   };
 
   const handleAddUser = (newUser: User) => {
-    setUsers((prev) => [...prev, newUser]);
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    dispatchCloudSave({ users: updatedUsers });
     showToast('Usuario Creado', `Se registró al usuario ${newUser.name} (${newUser.username})`);
   };
 
@@ -348,16 +379,26 @@ export default function App() {
       }
     }
 
-    setUsers((prev) => prev.filter((u) => u.id !== userId));
+    const updatedUsers = users.filter((u) => u.id !== userId);
+    setUsers(updatedUsers);
+    dispatchCloudSave({ users: updatedUsers });
     showToast('Usuario Eliminado', `Se eliminó al usuario ${targetUser.name} (@${targetUser.username})`);
   };
 
   // Rendiciones Handlers
-  const handleCreateRendicion = (data: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>) => {
+  const handleCreateRendicion = (
+    data: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>,
+    initialItems?: ExpenseItem[]
+  ) => {
+    const formattedInitialItems: ExpenseItem[] = (initialItems || []).map((it, idx) => ({
+      ...it,
+      itemNumber: idx + 1,
+    }));
+
     const newRend: Rendicion = {
       ...data,
       id: `rend-${Date.now()}`,
-      items: [],
+      items: formattedInitialItems,
       historialAprobacion: [
         {
           id: `h-${Date.now()}`,
@@ -366,24 +407,47 @@ export default function App() {
           usuarioRol: currentUser?.roleLabel || 'Colaborador',
           fecha: new Date().toISOString().replace('T', ' ').substring(0, 16),
           accion: 'creada',
-          comentario: `Apertura con fondo asignado por ${data.tipoDesembolso} (${data.numeroTransferencia}).`,
+          comentario: `Apertura con fondo asignado por ${data.tipoDesembolso} (${data.numeroTransferencia || data.numeroCheque || 'S/N'})${
+            formattedInitialItems.length > 0 ? ` e incorporación de ${formattedInitialItems.length} comprobantes iniciales.` : '.'
+          }`,
         },
       ],
     };
 
-    setRendiciones((prev) => [newRend, ...prev]);
+    // If initial items were taken from surplus, remove them from global surplusExpenses
+    let updatedSurplus = [...surplusExpenses];
+    if (formattedInitialItems.length > 0) {
+      const addedIds = new Set(formattedInitialItems.map((it) => it.id));
+      updatedSurplus = updatedSurplus.filter((s) => !addedIds.has(s.id));
+      setSurplusExpenses(updatedSurplus);
+    }
+
+    const updatedRendiciones = [newRend, ...rendiciones];
+    setRendiciones(updatedRendiciones);
     setSelectedRendicionId(newRend.id);
+    setSurplusForNewRendicion([]);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      surplusExpenses: updatedSurplus,
+    });
+
     showToast(
       'Rendición Creada',
-      `Se generó la rendición ${newRend.codigoRendicion}. Ahora puede cargar comprobantes mediante OCR.`
+      `Se generó la rendición ${newRend.codigoRendicion}${
+        formattedInitialItems.length > 0
+          ? ` con ${formattedInitialItems.length} comprobante(s) asignados.`
+          : '. Ahora puede cargar comprobantes mediante OCR.'
+      }`
     );
   };
 
   const handleAddExpense = (expenseData: Omit<ExpenseItem, 'id' | 'itemNumber'>) => {
     if (!selectedRendicionId) return;
 
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== selectedRendicionId) return rend;
         const nextItemNumber = rend.items.length + 1;
         const newItem: ExpenseItem = {
@@ -395,12 +459,14 @@ export default function App() {
           ...rend,
           items: [...rend.items, newItem],
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
 
     // Update cost center spent amount
-    setCostCenters((prev) =>
-      prev.map((cc) => {
+    let updatedCostCenters: CostCenter[] = [];
+    setCostCenters((prev) => {
+      updatedCostCenters = prev.map((cc) => {
         if (cc.id === expenseData.centroCostosId) {
           return {
             ...cc,
@@ -408,8 +474,14 @@ export default function App() {
           };
         }
         return cc;
-      })
-    );
+      });
+      return updatedCostCenters;
+    });
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      costCenters: updatedCostCenters,
+    });
 
     showToast(
       'Comprobante Agregado',
@@ -420,34 +492,182 @@ export default function App() {
   const handleDeleteExpense = (expenseId: string) => {
     if (!selectedRendicionId) return;
 
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    let updatedCostCenters: CostCenter[] = [];
+
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== selectedRendicionId) return rend;
         const itemToDelete = rend.items.find((i) => i.id === expenseId);
         if (itemToDelete) {
           // Adjust CC spent amount
-          setCostCenters((ccs) =>
-            ccs.map((cc) =>
+          setCostCenters((ccs) => {
+            updatedCostCenters = ccs.map((cc) =>
               cc.id === itemToDelete.centroCostosId
                 ? { ...cc, spentAmount: Math.max(0, Number((cc.spentAmount - itemToDelete.montoTotal).toFixed(2))) }
                 : cc
-            )
-          );
+            );
+            return updatedCostCenters;
+          });
         }
         const updatedItems = rend.items
           .filter((i) => i.id !== expenseId)
           .map((item, idx) => ({ ...item, itemNumber: idx + 1 }));
         return { ...rend, items: updatedItems };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      costCenters: updatedCostCenters.length > 0 ? updatedCostCenters : costCenters,
+    });
 
     showToast('Comprobante Eliminado', 'Se ha removido el gasto y recalculado el cuadre.', 'alert');
   };
 
+  // Cuadrar Rendición separando documentos sobrantes para nuevas rendiciones
+  const handleCuadreWithSurplus = (
+    rendicionId: string,
+    retainedItems: ExpenseItem[],
+    surplusItems: ExpenseItem[],
+    createNewNow: boolean,
+    reciboSimpleMonto?: number,
+    reciboSimpleDetalle?: string
+  ) => {
+    const target = rendiciones.find((r) => r.id === rendicionId);
+    if (!target) return;
+
+    let finalItems = [...retainedItems];
+
+    // Si se especificó un recibo simple para cuadre exacto
+    if (reciboSimpleMonto && reciboSimpleMonto > 0) {
+      const reciboSimpleItem: ExpenseItem = {
+        id: `recibo-simple-${Date.now()}`,
+        itemNumber: finalItems.length + 1,
+        fecha: new Date().toISOString().split('T')[0],
+        tipoDocumento: 'Recibo Simple',
+        numeroComprobante: `REC-AJ-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+        ruc: company.ruc,
+        razonSocial: 'COMPENSACIÓN POR CUADRE CONTABLE',
+        detalle: reciboSimpleDetalle || 'Ajuste provisional para cuadre exacto de caja',
+        clasificacionGasto: 'Gastos Menores / Remanente',
+        centroCostosId: target.centroCostosId || costCenters[0]?.id || 'cc-1',
+        montoTotal: Number(reciboSimpleMonto.toFixed(2)),
+      };
+      finalItems.push(reciboSimpleItem);
+    }
+
+    // Renumerar items retenidos correlativamente
+    finalItems = finalItems.map((it, idx) => ({ ...it, itemNumber: idx + 1 }));
+
+    // Convertir documentos sobrantes para el bolsón global
+    const newSurplusItems: SurplusExpenseItem[] = surplusItems.map((item) => ({
+      ...item,
+      origenRendicionId: target.id,
+      origenCodigoRendicion: target.codigoRendicion,
+      fechaSeparacion: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      motivoExclusion: `Sobrante del cuadre de ${target.codigoRendicion}`,
+    }));
+
+    const updatedSurplus = [...newSurplusItems, ...surplusExpenses];
+    setSurplusExpenses(updatedSurplus);
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updatedRendiciones = rendiciones.map((rend) => {
+      if (rend.id !== rendicionId) return rend;
+      const newHist = {
+        id: `h-${Date.now()}`,
+        nivel: 'Nivel 1 - Cuadre y Separación de Sobrantes',
+        usuarioNombre: currentUser?.name || 'Usuario',
+        usuarioRol: currentUser?.roleLabel || 'Colaborador',
+        fecha: nowStr,
+        accion: 'creada' as const,
+        comentario: `Se cuadró la rendición reteniendo ${finalItems.length} comprobantes y liberando ${surplusItems.length} comprobantes sobrantes para una nueva rendición.`,
+      };
+      return {
+        ...rend,
+        items: finalItems,
+        historialAprobacion: [...rend.historialAprobacion, newHist],
+      };
+    });
+
+    setRendiciones(updatedRendiciones);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      surplusExpenses: updatedSurplus,
+    });
+
+    showToast(
+      'Rendición Cuadrada',
+      `Se cuadró ${target.codigoRendicion}. ${surplusItems.length} comprobante(s) quedaron disponibles en el bolsón de sobrantes.`
+    );
+
+    if (createNewNow && newSurplusItems.length > 0) {
+      setSelectedRendicionId(null);
+      setSurplusForNewRendicion(newSurplusItems);
+      setIsNewModalOpen(true);
+    }
+  };
+
+  // Mover un comprobante individual de una rendición al bolsón de documentos sobrantes
+  const handleMoveItemToSurplus = (rendicionId: string, expenseId: string) => {
+    const target = rendiciones.find((r) => r.id === rendicionId);
+    if (!target) return;
+
+    const itemToMove = target.items.find((it) => it.id === expenseId);
+    if (!itemToMove) return;
+
+    const newSurplusItem: SurplusExpenseItem = {
+      ...itemToMove,
+      origenRendicionId: target.id,
+      origenCodigoRendicion: target.codigoRendicion,
+      fechaSeparacion: new Date().toISOString().replace('T', ' ').substring(0, 16),
+      motivoExclusion: `Separado de ${target.codigoRendicion}`,
+    };
+
+    const updatedSurplus = [newSurplusItem, ...surplusExpenses];
+    setSurplusExpenses(updatedSurplus);
+
+    const updatedItems = target.items
+      .filter((it) => it.id !== expenseId)
+      .map((it, idx) => ({ ...it, itemNumber: idx + 1 }));
+
+    const updatedRendiciones = rendiciones.map((rend) => {
+      if (rend.id !== rendicionId) return rend;
+      return {
+        ...rend,
+        items: updatedItems,
+      };
+    });
+
+    setRendiciones(updatedRendiciones);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      surplusExpenses: updatedSurplus,
+    });
+
+    showToast(
+      'Comprobante Movido a Sobrantes',
+      `Se retiró ${itemToMove.tipoDocumento} ${itemToMove.numeroComprobante} (S/ ${itemToMove.montoTotal.toFixed(2)}) y quedó listo para una nueva rendición.`
+    );
+  };
+
+  // Eliminar un comprobante del bolsón de documentos sobrantes
+  const handleDeleteSurplusItem = (id: string) => {
+    const updatedSurplus = surplusExpenses.filter((s) => s.id !== id);
+    setSurplusExpenses(updatedSurplus);
+    dispatchCloudSave({ surplusExpenses: updatedSurplus });
+    showToast('Documento Sobrante Eliminado', 'Se retiró el comprobante del bolsón de sobrantes.', 'alert');
+  };
+
   const handleSubmitForApproval = (rendicionId: string) => {
     const target = rendiciones.find((r) => r.id === rendicionId);
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         const newHist = {
           id: `h-${Date.now()}`,
@@ -463,8 +683,9 @@ export default function App() {
           estado: 'pendiente_aprobacion',
           historialAprobacion: [...rend.historialAprobacion, newHist],
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
 
     // Add real-time notification
     const newNotif: AppNotification = {
@@ -476,7 +697,13 @@ export default function App() {
       leido: false,
       rendicionId,
     };
-    setNotifications((prev) => [newNotif, ...prev]);
+    const updatedNotifs = [newNotif, ...notifications];
+    setNotifications(updatedNotifs);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      notifications: updatedNotifs,
+    });
 
     showToast(
       'Solicitud Enviada',
@@ -492,8 +719,9 @@ export default function App() {
     const target = rendiciones.find((r) => r.id === rendicionId);
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
 
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         const newHist = {
           id: `h-${Date.now()}`,
@@ -513,8 +741,9 @@ export default function App() {
           fechaFirmaAprobador: firmaAprobadorUrl ? new Date().toLocaleString('es-PE') : rend.fechaFirmaAprobador,
           historialAprobacion: [...rend.historialAprobacion, newHist],
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
 
     // Add real-time notification
     const newNotif: AppNotification = {
@@ -526,7 +755,13 @@ export default function App() {
       leido: false,
       rendicionId,
     };
-    setNotifications((prev) => [newNotif, ...prev]);
+    const updatedNotifs = [newNotif, ...notifications];
+    setNotifications(updatedNotifs);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      notifications: updatedNotifs,
+    });
 
     showToast(
       'Rendición Aprobada',
@@ -536,8 +771,9 @@ export default function App() {
 
   const handleObserveRendicion = (rendicionId: string, comment: string) => {
     const target = rendiciones.find((r) => r.id === rendicionId);
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         const newHist = {
           id: `h-${Date.now()}`,
@@ -554,8 +790,9 @@ export default function App() {
           observaciones: comment,
           historialAprobacion: [...rend.historialAprobacion, newHist],
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
 
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
@@ -566,7 +803,13 @@ export default function App() {
       leido: false,
       rendicionId,
     };
-    setNotifications((prev) => [newNotif, ...prev]);
+    const updatedNotifs = [newNotif, ...notifications];
+    setNotifications(updatedNotifs);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      notifications: updatedNotifs,
+    });
 
     showToast(
       'Rendición Observada',
@@ -577,8 +820,9 @@ export default function App() {
 
   const handleLiquidateRendicion = (rendicionId: string, comment: string) => {
     const target = rendiciones.find((r) => r.id === rendicionId);
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         const newHist = {
           id: `h-${Date.now()}`,
@@ -594,8 +838,9 @@ export default function App() {
           estado: 'liquidada',
           historialAprobacion: [...rend.historialAprobacion, newHist],
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
 
     const newNotif: AppNotification = {
       id: `notif-${Date.now()}`,
@@ -606,7 +851,13 @@ export default function App() {
       leido: false,
       rendicionId,
     };
-    setNotifications((prev) => [newNotif, ...prev]);
+    const updatedNotifs = [newNotif, ...notifications];
+    setNotifications(updatedNotifs);
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      notifications: updatedNotifs,
+    });
 
     showToast(
       'Rendición Liquidada',
@@ -623,8 +874,9 @@ export default function App() {
       fechaFirmaAprobador?: string;
     }
   ) => {
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         return {
           ...rend,
@@ -633,21 +885,26 @@ export default function App() {
           firmaAprobador: signatures.firmaAprobador ?? rend.firmaAprobador,
           fechaFirmaAprobador: signatures.fechaFirmaAprobador ?? rend.fechaFirmaAprobador,
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
+    dispatchCloudSave({ rendiciones: updatedRendiciones });
     showToast('Firma Registrada', 'La firma digital fue estampada y guardada correctamente.');
   };
 
   const handleUpdateMontoAsignado = (rendicionId: string, newMonto: number) => {
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         return {
           ...rend,
           montoAsignado: newMonto,
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
+    dispatchCloudSave({ rendiciones: updatedRendiciones });
     showToast(
       'Rendición Cuadrada',
       `Se ajustó el desembolso a S/ ${newMonto.toFixed(2)} para cuadrar la rendición según directiva contable.`
@@ -655,15 +912,18 @@ export default function App() {
   };
 
   const handleUpdateItems = (rendicionId: string, updatedItems: ExpenseItem[]) => {
-    setRendiciones((prev) =>
-      prev.map((rend) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
         if (rend.id !== rendicionId) return rend;
         return {
           ...rend,
           items: updatedItems,
         };
-      })
-    );
+      });
+      return updatedRendiciones;
+    });
+    dispatchCloudSave({ rendiciones: updatedRendiciones });
     showToast(
       'Comprobantes Ordenados',
       'Se reordenaron los comprobantes según la fecha de emisión del documento y se renumeraron correlativamente.'
@@ -671,9 +931,12 @@ export default function App() {
   };
 
   const handleUpdateCostCenterLimit = (id: string, newLimit: number) => {
-    setCostCenters((prev) =>
-      prev.map((cc) => (cc.id === id ? { ...cc, budgetLimit: newLimit } : cc))
-    );
+    let updatedCostCenters: CostCenter[] = [];
+    setCostCenters((prev) => {
+      updatedCostCenters = prev.map((cc) => (cc.id === id ? { ...cc, budgetLimit: newLimit } : cc));
+      return updatedCostCenters;
+    });
+    dispatchCloudSave({ costCenters: updatedCostCenters });
     showToast('Límite Actualizado', 'El nuevo límite presupuestal ha sido registrado.');
   };
 
@@ -683,7 +946,9 @@ export default function App() {
       id: `cc-${Date.now()}`,
       spentAmount: 0,
     };
-    setCostCenters((prev) => [...prev, cc]);
+    const updated = [...costCenters, cc];
+    setCostCenters(updated);
+    dispatchCloudSave({ costCenters: updated });
     showToast('Centro de Costos Creado', `Se agregó ${cc.code} - ${cc.name}`);
   };
 
@@ -712,6 +977,7 @@ export default function App() {
 
     // Clear relevant localStorage keys
     localStorage.removeItem('corpgastos_rendiciones');
+    localStorage.removeItem('corpgastos_surplus_expenses');
     localStorage.removeItem('corpgastos_cost_centers');
     localStorage.removeItem('corpgastos_company');
     localStorage.removeItem('corpgastos_destinatario_accounts');
@@ -731,30 +997,36 @@ export default function App() {
         },
       ];
       setRendiciones([]);
+      setSurplusExpenses([]);
       setCostCenters(resetCostCenters);
       setCompany(INITIAL_COMPANY);
       setDestinatarioAccounts(INITIAL_DESTINATARIO_ACCOUNTS);
       setNotifications(newNotifs);
-      triggerCloudSave({
+      saveToCloud({
         rendiciones: [],
+        surplusExpenses: [],
         costCenters: resetCostCenters,
         company: INITIAL_COMPANY,
+        destinatarioAccounts: INITIAL_DESTINATARIO_ACCOUNTS,
         notifications: newNotifs,
-      });
+      }, true);
       showToast('Sistema en Blanco', 'Base de datos reiniciada. El próximo registro será REND-001.');
     } else {
       // Reset to initial demo with codes starting at REND-001
       setRendiciones(INITIAL_RENDICIONES);
+      setSurplusExpenses([]);
       setCostCenters(INITIAL_COST_CENTERS);
       setCompany(INITIAL_COMPANY);
       setDestinatarioAccounts(INITIAL_DESTINATARIO_ACCOUNTS);
       setNotifications(INITIAL_NOTIFICATIONS);
-      triggerCloudSave({
+      saveToCloud({
         rendiciones: INITIAL_RENDICIONES,
+        surplusExpenses: [],
         costCenters: INITIAL_COST_CENTERS,
         company: INITIAL_COMPANY,
+        destinatarioAccounts: INITIAL_DESTINATARIO_ACCOUNTS,
         notifications: INITIAL_NOTIFICATIONS,
-      });
+      }, true);
       showToast('Sistema Restaurado', 'Se cargaron los datos de ejemplo iniciales (REND-001 al REND-004).');
     }
     setSelectedRendicionId(null);
@@ -800,7 +1072,16 @@ export default function App() {
             costCenters={costCenters}
             currentUser={currentUser}
             onSelectRendicion={(r) => setSelectedRendicionId(r.id)}
-            onOpenNewModal={() => setIsNewModalOpen(true)}
+            onOpenNewModal={() => {
+              setSurplusForNewRendicion([]);
+              setIsNewModalOpen(true);
+            }}
+            surplusExpenses={surplusExpenses}
+            onOpenNewWithSurplus={(items) => {
+              setSurplusForNewRendicion(items);
+              setIsNewModalOpen(true);
+            }}
+            onDeleteSurplusItem={handleDeleteSurplusItem}
           />
         )}
 
@@ -928,7 +1209,10 @@ export default function App() {
       {/* New Rendición Modal */}
       <NewRendicionModal
         isOpen={isNewModalOpen}
-        onClose={() => setIsNewModalOpen(false)}
+        onClose={() => {
+          setIsNewModalOpen(false);
+          setSurplusForNewRendicion([]);
+        }}
         onCreate={handleCreateRendicion}
         costCenters={costCenters}
         currentUser={currentUser}
@@ -937,6 +1221,8 @@ export default function App() {
         nextCode={nextRendCode}
         destinatarioAccounts={destinatarioAccounts}
         onAddDestinatarioAccount={handleAddDestinatarioAccount}
+        availableSurplus={surplusExpenses}
+        preselectedSurplus={surplusForNewRendicion}
       />
 
       {/* Selected Rendición Detail Modal */}
@@ -957,6 +1243,8 @@ export default function App() {
           onUpdateSignatures={handleUpdateSignatures}
           onUpdateMontoAsignado={handleUpdateMontoAsignado}
           onUpdateItems={handleUpdateItems}
+          onCuadreWithSurplus={handleCuadreWithSurplus}
+          onMoveItemToSurplus={handleMoveItemToSurplus}
         />
       )}
 

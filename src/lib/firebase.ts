@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { CompanySettings, User, CostCenter, Rendicion, AppNotification } from '../types';
+import { CompanySettings, User, CostCenter, Rendicion, AppNotification, SurplusExpenseItem, DestinatarioAccount } from '../types';
 
 // Inicializar la aplicación Firebase si no está ya inicializada
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
@@ -57,8 +57,11 @@ export interface CloudStatePayload {
   users?: User[];
   costCenters?: CostCenter[];
   rendiciones?: Rendicion[];
+  surplusExpenses?: SurplusExpenseItem[];
+  destinatarioAccounts?: DestinatarioAccount[];
   notifications?: AppNotification[];
   lastUpdated?: string;
+  lastUpdatedBy?: string;
 }
 
 /**
@@ -86,11 +89,29 @@ export function subscribeToCloudState(
 }
 
 /**
- * Guarda o actualiza datos en Firestore de forma atómica
+ * Guarda o actualiza datos en Firestore de forma atómica con protección anti-pérdida de datos
  */
-export async function saveToCloud(partialState: CloudStatePayload): Promise<void> {
+export async function saveToCloud(partialState: CloudStatePayload, forceEmptyRendiciones = false): Promise<void> {
   try {
     const docRef = doc(db, COLLECTION_SYSTEM, DOC_STATE);
+
+    // Protección anti-pérdida multi-dispositivo:
+    // Si un dispositivo nuevo o sin caché intenta guardar rendiciones vacías pero en la nube ya hay datos,
+    // preservamos los datos remotos en vez de borrarlos.
+    if (!forceEmptyRendiciones) {
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const remoteData = snap.data() as CloudStatePayload;
+        if (partialState.rendiciones && partialState.rendiciones.length === 0 && remoteData.rendiciones && remoteData.rendiciones.length > 0) {
+          console.warn('Protección de nube activada: se evitó sobreescribir rendiciones existentes en la nube con estado vacío de dispositivo nuevo.');
+          delete partialState.rendiciones;
+        }
+        if (partialState.surplusExpenses && partialState.surplusExpenses.length === 0 && remoteData.surplusExpenses && remoteData.surplusExpenses.length > 0) {
+          delete partialState.surplusExpenses;
+        }
+      }
+    }
+
     await setDoc(
       docRef,
       {

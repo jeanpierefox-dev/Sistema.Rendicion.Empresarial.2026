@@ -15,8 +15,13 @@ import {
   Calendar,
   User,
   ArrowUpDown,
+  Layers,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
 } from 'lucide-react';
-import { Rendicion, CompanySettings, CostCenter, User as UserType } from '../types';
+import { Rendicion, CompanySettings, CostCenter, User as UserType, SurplusExpenseItem } from '../types';
 import { calculateCuadre, exportRendicionToExcel, exportRendicionToPDF, formatCurrency } from '../utils/financial';
 import { CuadreWidget } from './CuadreWidget';
 
@@ -27,6 +32,9 @@ interface RendicionesListViewProps {
   currentUser: UserType | null;
   onSelectRendicion: (rendicion: Rendicion) => void;
   onOpenNewModal: () => void;
+  surplusExpenses?: SurplusExpenseItem[];
+  onOpenNewWithSurplus?: (items: SurplusExpenseItem[]) => void;
+  onDeleteSurplusItem?: (id: string) => void;
 }
 
 export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
@@ -36,10 +44,18 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
   currentUser,
   onSelectRendicion,
   onOpenNewModal,
+  surplusExpenses = [],
+  onOpenNewWithSurplus,
+  onDeleteSurplusItem,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [sortBy, setSortBy] = useState<'fecha_desc' | 'fecha_asc' | 'monto_desc' | 'codigo'>('fecha_desc');
+  const [showSurplusTray, setShowSurplusTray] = useState(false);
+
+  const totalSurplusAmount = React.useMemo(() => {
+    return Number(surplusExpenses.reduce((acc, it) => acc + it.montoTotal, 0).toFixed(2));
+  }, [surplusExpenses]);
 
   const filtered = rendiciones.filter((r) => {
     const q = searchTerm.toLowerCase();
@@ -99,6 +115,104 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* BANNER DE DOCUMENTOS SOBRANTES / BANDEJA DE EXCEDENTES */}
+      {surplusExpenses.length > 0 && (
+        <div className="p-4 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-amber-500/10 border-2 border-amber-400/80 rounded-2xl shadow-xs space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-amber-500 text-slate-950 font-extrabold rounded-xl shadow-xs">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">
+                    Bandeja de Documentos Sobrantes ({surplusExpenses.length} comprobantes)
+                  </h3>
+                  <span className="px-2 py-0.5 bg-amber-200 text-amber-900 font-mono font-bold rounded text-xs">
+                    Total: S/ {totalSurplusAmount.toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  Comprobantes separados durante el cuadre de planillas anteriores. Listos para ser incorporados a una nueva rendición.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSurplusTray(!showSurplusTray)}
+                className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-lg border border-slate-300 shadow-2xs flex items-center space-x-1 cursor-pointer"
+              >
+                <span>{showSurplusTray ? 'Ocultar Detalle' : 'Ver Comprobantes'}</span>
+                {showSurplusTray ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              <button
+                type="button"
+                id="btn-crear-con-sobrantes"
+                onClick={() => {
+                  if (onOpenNewWithSurplus) {
+                    onOpenNewWithSurplus(surplusExpenses);
+                  } else {
+                    onOpenNewModal();
+                  }
+                }}
+                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm flex items-center space-x-1.5 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4 text-emerald-300" />
+                <span>Crear Nueva Rendición con estos Comprobantes</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsible List of Surplus Documents */}
+          {showSurplusTray && (
+            <div className="pt-2 border-t border-amber-200/80">
+              <div className="max-h-48 overflow-y-auto divide-y divide-slate-200 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                {surplusExpenses.map((item) => (
+                  <div key={item.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50">
+                    <div className="min-w-0 pr-2">
+                      <div className="flex items-center space-x-2 flex-wrap">
+                        <span className="font-bold text-slate-900">{item.razonSocial || item.detalle}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 font-mono text-slate-600">
+                          {item.tipoDocumento} {item.numeroComprobante}
+                        </span>
+                        {item.origenCodigoRendicion && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-mono">
+                            Planilla Origen: {item.origenCodigoRendicion}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {item.fecha} — {item.clasificacionGasto} • {item.detalle}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <span className="font-mono font-extrabold text-indigo-900 text-xs">
+                        S/ {item.montoTotal.toFixed(2)}
+                      </span>
+                      {onDeleteSurplusItem && (
+                        <button
+                          type="button"
+                          onClick={() => onDeleteSurplusItem(item.id)}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                          title="Descartar documento sobrante"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Filters Strip */}
       <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">

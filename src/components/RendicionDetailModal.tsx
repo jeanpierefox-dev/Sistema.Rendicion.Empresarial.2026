@@ -25,6 +25,7 @@ import {
   ArrowDownUp,
   Sparkles,
   Scale,
+  FolderOutput,
 } from 'lucide-react';
 import {
   Rendicion,
@@ -68,6 +69,15 @@ interface RendicionDetailModalProps {
   ) => void;
   onUpdateMontoAsignado?: (rendicionId: string, newMonto: number) => void;
   onUpdateItems?: (rendicionId: string, updatedItems: ExpenseItem[]) => void;
+  onCuadreWithSurplus?: (
+    rendicionId: string,
+    retainedItems: ExpenseItem[],
+    surplusItems: ExpenseItem[],
+    createNewNow: boolean,
+    reciboSimpleMonto?: number,
+    reciboSimpleDetalle?: string
+  ) => void;
+  onMoveItemToSurplus?: (rendicionId: string, expenseId: string) => void;
 }
 
 export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
@@ -86,6 +96,8 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   onUpdateSignatures,
   onUpdateMontoAsignado,
   onUpdateItems,
+  onCuadreWithSurplus,
+  onMoveItemToSurplus,
 }) => {
   const [approvalComment, setApprovalComment] = useState('');
   const [showApprovalDialog, setShowApprovalDialog] = useState<null | 'aprobar' | 'observar' | 'liquidar'>(null);
@@ -376,7 +388,9 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                       )}
                     </div>
                     <p className="text-[11px] text-slate-300">
-                      Verifique el balance y emita un recibo simple del restante si tiene hasta 2 soles para cuadrar a cero
+                      {cuadre.saldoRestante < 0
+                        ? 'Los comprobantes superan el fondo asignado. Separe los documentos excedentes para dejarlos fuera de esta planilla y asignarlos a una nueva rendición.'
+                        : 'Verifique el balance y emita un recibo simple del restante si tiene hasta 2 soles para cuadrar a cero.'}
                     </p>
                   </div>
                 </div>
@@ -386,10 +400,18 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                   type="button"
                   id="btn-ajustar-cuadrar-unico"
                   onClick={() => setShowCuadreModal(true)}
-                  className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow flex items-center justify-center space-x-2 transition-all cursor-pointer active:scale-95 shrink-0"
+                  className={`w-full sm:w-auto px-4 py-2.5 rounded-lg text-xs font-bold shadow flex items-center justify-center space-x-2 transition-all cursor-pointer active:scale-95 shrink-0 ${
+                    cuadre.saldoRestante < 0
+                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  }`}
                 >
                   <Scale className="w-4 h-4 text-emerald-300" />
-                  <span>⚡ Ajustar y Cuadrar Rendición</span>
+                  <span>
+                    {cuadre.saldoRestante < 0
+                      ? '⚡ Cuadrar Rendición y Separar Sobrantes'
+                      : '⚡ Ajustar y Cuadrar Rendición'}
+                  </span>
                 </button>
               </div>
             )}
@@ -618,14 +640,25 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                             {formatCurrency(it.montoTotal)}
                           </td>
                           {canEdit && (
-                            <td className="py-2.5 px-3 text-center">
-                              <button
-                                onClick={() => onDeleteExpense(it.id)}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
-                                title="Eliminar gasto"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                            <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center space-x-1">
+                                {onMoveItemToSurplus && (
+                                  <button
+                                    onClick={() => onMoveItemToSurplus(rendicion.id, it.id)}
+                                    className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors cursor-pointer"
+                                    title="Dejar fuera del cuadro (Mover a documentos sobrantes para nueva rendición)"
+                                  >
+                                    <FolderOutput className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => onDeleteExpense(it.id)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                                  title="Eliminar gasto"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </td>
                           )}
                         </tr>
@@ -854,6 +887,7 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
           company={company}
           onUpdateMontoAsignado={onUpdateMontoAsignado}
           onAddReciboSimple={handleAddReciboSimple}
+          onCuadreWithSurplus={onCuadreWithSurplus}
         />
       )}
 

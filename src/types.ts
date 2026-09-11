@@ -61,6 +61,13 @@ export interface ExpenseItem {
   ocrVerificado?: boolean;
 }
 
+export interface SurplusExpenseItem extends ExpenseItem {
+  origenRendicionId?: string;
+  origenCodigoRendicion?: string;
+  fechaSeparacion?: string;
+  motivoExcedente?: string;
+}
+
 export type EstadoRendicion =
   | 'borrador'
   | 'pendiente_aprobacion'
