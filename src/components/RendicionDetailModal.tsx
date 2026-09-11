@@ -26,6 +26,8 @@ import {
   Sparkles,
   Scale,
   FolderOutput,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 import {
   Rendicion,
@@ -44,6 +46,7 @@ import {
 import { CuadreWidget } from './CuadreWidget';
 import { SignaturePadModal } from './SignaturePadModal';
 import { CuadreModal } from './CuadreModal';
+import { EditExpenseModal } from './EditExpenseModal';
 
 interface RendicionDetailModalProps {
   isOpen: boolean;
@@ -51,8 +54,11 @@ interface RendicionDetailModalProps {
   rendicion: Rendicion;
   company: CompanySettings;
   costCenter?: CostCenter;
+  costCenters?: CostCenter[];
   currentUser: UserType | null;
   onOpenOcr: () => void;
+  onAddExpense?: (expenseData: Omit<ExpenseItem, 'id' | 'itemNumber'>) => void;
+  onEditExpense?: (rendicionId: string, updatedExpense: ExpenseItem) => void;
   onDeleteExpense: (expenseId: string) => void;
   onSubmitForApproval: (rendicionId: string) => void;
   onApproveRendicion: (rendicionId: string, comment: string, firmaAprobadorUrl?: string) => void;
@@ -86,8 +92,11 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   rendicion,
   company,
   costCenter,
+  costCenters,
   currentUser,
   onOpenOcr,
+  onAddExpense,
+  onEditExpense,
   onDeleteExpense,
   onSubmitForApproval,
   onApproveRendicion,
@@ -102,6 +111,7 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   const [approvalComment, setApprovalComment] = useState('');
   const [showApprovalDialog, setShowApprovalDialog] = useState<null | 'aprobar' | 'observar' | 'liquidar'>(null);
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+  const [editingExpenseItem, setEditingExpenseItem] = useState<ExpenseItem | null>(null);
 
   // Sorting & Cuadre State
   const [sortAsc, setSortAsc] = useState<boolean>(true);
@@ -124,7 +134,10 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
     currentUser?.role === 'admin' || currentUser?.role === 'contador';
 
   const canEdit =
-    rendicion.estado === 'borrador' || rendicion.estado === 'observada';
+    rendicion.estado === 'borrador' ||
+    rendicion.estado === 'observada' ||
+    currentUser?.role === 'admin' ||
+    currentUser?.role === 'contador';
 
   const handleSortItemsByDate = () => {
     if (!rendicion.items || rendicion.items.length === 0) return;
@@ -560,13 +573,43 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                 </button>
 
                 {canEdit && (
-                  <button
-                    onClick={onOpenOcr}
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
-                  >
-                    <ScanText className="w-4 h-4" />
-                    <span>Cargar Ticket / Comprobante (OCR)</span>
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      id="btn-agregar-documento-manual"
+                      onClick={() => {
+                        const blankItem: ExpenseItem = {
+                          id: `manual-${Date.now()}`,
+                          itemNumber: rendicion.items.length + 1,
+                          fecha: new Date().toISOString().split('T')[0],
+                          tipoDocumento: 'Factura Electrónica',
+                          numeroComprobante: '',
+                          ruc: '',
+                          razonSocial: '',
+                          detalle: '',
+                          clasificacionGasto: 'Alimentación / Viáticos',
+                          centroCostosId: rendicion.centroCostosId || costCenter?.id || 'cc-1',
+                          montoTotal: 0,
+                          ocrVerificado: false,
+                        };
+                        setEditingExpenseItem(blankItem);
+                      }}
+                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+                      title="Registrar comprobante o recibo de forma manual"
+                    >
+                      <Plus className="w-4 h-4 text-emerald-400" />
+                      <span>+ Documento Manual</span>
+                    </button>
+
+                    <button
+                      onClick={onOpenOcr}
+                      id="btn-cargar-ticket-ocr"
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center space-x-1.5 transition-colors cursor-pointer"
+                    >
+                      <ScanText className="w-4 h-4" />
+                      <span>Cargar Ticket / Comprobante (OCR)</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -585,7 +628,7 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                       <th className="py-2.5 px-3">Detalle / Concepto</th>
                       <th className="py-2.5 px-3">Clasificación</th>
                       <th className="py-2.5 px-3 text-right">Monto Total (S/.)</th>
-                      {canEdit && <th className="py-2.5 px-3 text-center w-12">Acción</th>}
+                      {canEdit && <th className="py-2.5 px-3 text-center w-24">Acción</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
@@ -595,7 +638,7 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                           colSpan={canEdit ? 9 : 8}
                           className="py-8 text-center text-slate-400 text-xs"
                         >
-                          No hay comprobantes registrados aún. Utilice el botón "Cargar Ticket / Comprobante (OCR)" para agregar gastos.
+                          No hay comprobantes registrados aún. Utilice el botón "Cargar Ticket / Comprobante (OCR)" o "+ Documento Manual" para agregar gastos.
                         </td>
                       </tr>
                     ) : (
@@ -613,7 +656,19 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                             </span>
                           </td>
                           <td className="py-2.5 px-3 font-mono font-bold text-slate-900 whitespace-nowrap">
-                            {it.numeroComprobante}
+                            {canEdit ? (
+                              <button
+                                type="button"
+                                onClick={() => setEditingExpenseItem(it)}
+                                className="font-mono font-bold text-indigo-600 hover:text-indigo-900 hover:underline flex items-center space-x-1 cursor-pointer text-left"
+                                title="Haga clic para editar datos de este comprobante"
+                              >
+                                <span>{it.numeroComprobante}</span>
+                                <Pencil className="w-3 h-3 text-indigo-400 opacity-60 hover:opacity-100" />
+                              </button>
+                            ) : (
+                              it.numeroComprobante
+                            )}
                           </td>
                           <td className="py-2.5 px-3">
                             <div className="font-semibold text-slate-900 line-clamp-1">{it.razonSocial}</div>
@@ -642,18 +697,29 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                           {canEdit && (
                             <td className="py-2.5 px-3 text-center whitespace-nowrap">
                               <div className="flex items-center justify-center space-x-1">
+                                <button
+                                  type="button"
+                                  id={`btn-edit-expense-${it.id}`}
+                                  onClick={() => setEditingExpenseItem(it)}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Editar datos del comprobante / documento"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
                                 {onMoveItemToSurplus && (
                                   <button
+                                    type="button"
                                     onClick={() => onMoveItemToSurplus(rendicion.id, it.id)}
-                                    className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors cursor-pointer"
+                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                     title="Dejar fuera del cuadro (Mover a documentos sobrantes para nueva rendición)"
                                   >
                                     <FolderOutput className="w-4 h-4" />
                                   </button>
                                 )}
                                 <button
+                                  type="button"
                                   onClick={() => onDeleteExpense(it.id)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                   title="Eliminar gasto"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -912,6 +978,38 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
               : currentUser?.roleLabel || 'Gerente / Administrador'
           }
           onSaveSignature={handleSaveSignature}
+        />
+      )}
+
+      {/* Edit or Manual Expense Modal */}
+      {editingExpenseItem && (
+        <EditExpenseModal
+          isOpen={!!editingExpenseItem}
+          onClose={() => setEditingExpenseItem(null)}
+          expenseItem={editingExpenseItem}
+          costCenters={costCenters || (costCenter ? [costCenter] : [])}
+          defaultCostCenterId={rendicion.centroCostosId}
+          onSave={(updated) => {
+            const exists = rendicion.items.some((i) => i.id === updated.id);
+            if (exists) {
+              onEditExpense?.(rendicion.id, updated);
+            } else {
+              onAddExpense?.({
+                fecha: updated.fecha,
+                tipoDocumento: updated.tipoDocumento,
+                numeroComprobante: updated.numeroComprobante,
+                ruc: updated.ruc,
+                razonSocial: updated.razonSocial,
+                detalle: updated.detalle,
+                clasificacionGasto: updated.clasificacionGasto,
+                centroCostosId: updated.centroCostosId,
+                montoTotal: updated.montoTotal,
+                comprobanteUrl: updated.comprobanteUrl,
+                ocrVerificado: updated.ocrVerificado,
+              });
+            }
+            setEditingExpenseItem(null);
+          }}
         />
       )}
     </>

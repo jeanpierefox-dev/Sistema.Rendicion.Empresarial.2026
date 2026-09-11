@@ -526,6 +526,77 @@ export default function App() {
     showToast('Comprobante Eliminado', 'Se ha removido el gasto y recalculado el cuadre.', 'alert');
   };
 
+  // Editar comprobante existente dentro de una rendición
+  const handleEditExpense = (rendicionId: string, updatedExpense: ExpenseItem) => {
+    let updatedRendiciones: Rendicion[] = [];
+    let updatedCostCenters: CostCenter[] = [];
+
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
+        if (rend.id !== rendicionId) return rend;
+
+        const oldItem = rend.items.find((i) => i.id === updatedExpense.id);
+        if (oldItem) {
+          const oldMonto = oldItem.montoTotal;
+          const newMonto = updatedExpense.montoTotal;
+          const oldCcId = oldItem.centroCostosId;
+          const newCcId = updatedExpense.centroCostosId;
+
+          setCostCenters((ccs) => {
+            updatedCostCenters = ccs.map((cc) => {
+              let newSpent = cc.spentAmount;
+              if (oldCcId === newCcId) {
+                if (cc.id === oldCcId) {
+                  newSpent = Math.max(0, Number((newSpent - oldMonto + newMonto).toFixed(2)));
+                }
+              } else {
+                if (cc.id === oldCcId) {
+                  newSpent = Math.max(0, Number((newSpent - oldMonto).toFixed(2)));
+                }
+                if (cc.id === newCcId) {
+                  newSpent = Number((newSpent + newMonto).toFixed(2));
+                }
+              }
+              return { ...cc, spentAmount: newSpent };
+            });
+            return updatedCostCenters;
+          });
+        }
+
+        const updatedItems = rend.items.map((it) =>
+          it.id === updatedExpense.id ? { ...updatedExpense, itemNumber: it.itemNumber } : it
+        );
+
+        return {
+          ...rend,
+          items: updatedItems,
+        };
+      });
+      return updatedRendiciones;
+    });
+
+    dispatchCloudSave({
+      rendiciones: updatedRendiciones,
+      costCenters: updatedCostCenters.length > 0 ? updatedCostCenters : costCenters,
+    });
+
+    showToast(
+      'Comprobante Actualizado',
+      `Se modificó ${updatedExpense.tipoDocumento} ${updatedExpense.numeroComprobante} (S/ ${updatedExpense.montoTotal.toFixed(2)}).`
+    );
+  };
+
+  // Editar documento sobrante
+  const handleEditSurplusItem = (updatedItem: SurplusExpenseItem) => {
+    const updatedSurplus = surplusExpenses.map((s) => (s.id === updatedItem.id ? updatedItem : s));
+    setSurplusExpenses(updatedSurplus);
+    dispatchCloudSave({ surplusExpenses: updatedSurplus });
+    showToast(
+      'Documento Sobrante Actualizado',
+      `Se modificaron los datos de ${updatedItem.tipoDocumento} ${updatedItem.numeroComprobante}.`
+    );
+  };
+
   // Cuadrar Rendición separando documentos sobrantes para nuevas rendiciones
   const handleCuadreWithSurplus = (
     rendicionId: string,
@@ -1082,6 +1153,7 @@ export default function App() {
               setIsNewModalOpen(true);
             }}
             onDeleteSurplusItem={handleDeleteSurplusItem}
+            onEditSurplusItem={handleEditSurplusItem}
           />
         )}
 
@@ -1233,8 +1305,11 @@ export default function App() {
           rendicion={selectedRendicion}
           company={company}
           costCenter={costCenters.find((c) => c.id === selectedRendicion.centroCostosId)}
+          costCenters={costCenters}
           currentUser={currentUser}
           onOpenOcr={() => setIsOcrModalOpen(true)}
+          onAddExpense={handleAddExpense}
+          onEditExpense={handleEditExpense}
           onDeleteExpense={handleDeleteExpense}
           onSubmitForApproval={handleSubmitForApproval}
           onApproveRendicion={handleApproveRendicion}

@@ -20,10 +20,12 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRight,
+  Pencil,
 } from 'lucide-react';
-import { Rendicion, CompanySettings, CostCenter, User as UserType, SurplusExpenseItem } from '../types';
+import { Rendicion, CompanySettings, CostCenter, User as UserType, SurplusExpenseItem, ExpenseItem } from '../types';
 import { calculateCuadre, exportRendicionToExcel, exportRendicionToPDF, formatCurrency } from '../utils/financial';
 import { CuadreWidget } from './CuadreWidget';
+import { EditExpenseModal } from './EditExpenseModal';
 
 interface RendicionesListViewProps {
   rendiciones: Rendicion[];
@@ -35,6 +37,7 @@ interface RendicionesListViewProps {
   surplusExpenses?: SurplusExpenseItem[];
   onOpenNewWithSurplus?: (items: SurplusExpenseItem[]) => void;
   onDeleteSurplusItem?: (id: string) => void;
+  onEditSurplusItem?: (updatedItem: SurplusExpenseItem) => void;
 }
 
 export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
@@ -47,11 +50,13 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
   surplusExpenses = [],
   onOpenNewWithSurplus,
   onDeleteSurplusItem,
+  onEditSurplusItem,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [sortBy, setSortBy] = useState<'fecha_desc' | 'fecha_asc' | 'monto_desc' | 'codigo'>('fecha_desc');
   const [showSurplusTray, setShowSurplusTray] = useState(false);
+  const [editingSurplusItem, setEditingSurplusItem] = useState<SurplusExpenseItem | null>(null);
 
   const totalSurplusAmount = React.useMemo(() => {
     return Number(surplusExpenses.reduce((acc, it) => acc + it.montoTotal, 0).toFixed(2));
@@ -195,6 +200,16 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
                       <span className="font-mono font-extrabold text-indigo-900 text-xs">
                         S/ {item.montoTotal.toFixed(2)}
                       </span>
+                      {onEditSurplusItem && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingSurplusItem(item)}
+                          className="p-1 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                          title="Editar datos del documento sobrante"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       {onDeleteSurplusItem && (
                         <button
                           type="button"
@@ -543,6 +558,24 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Edit Surplus Expense Item Modal */}
+      {editingSurplusItem && (
+        <EditExpenseModal
+          isOpen={!!editingSurplusItem}
+          onClose={() => setEditingSurplusItem(null)}
+          expenseItem={editingSurplusItem}
+          costCenters={costCenters}
+          defaultCostCenterId={editingSurplusItem.centroCostosId}
+          onSave={(updated) => {
+            onEditSurplusItem?.({
+              ...editingSurplusItem,
+              ...updated,
+            });
+            setEditingSurplusItem(null);
+          }}
+        />
+      )}
     </div>
   );
 };
