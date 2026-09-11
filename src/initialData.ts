@@ -36,21 +36,55 @@ export const INITIAL_COMPANY: CompanySettings = {
   ],
 };
 
+export const DEFAULT_ADMIN_USER: User = {
+  id: 'usr-1',
+  username: 'admin',
+  password: '1234',
+  name: 'Ing. Roberto Mendoza',
+  email: 'admin@corpandina.com.pe',
+  role: 'admin',
+  roleLabel: 'Administrador General & Contralor',
+  department: 'Dirección y Finanzas',
+  dni: '09482716',
+  cargo: 'Contralor General & Administrador Principal',
+  cuentaBancaria: 'BCP Cta Ahorros 193-94829102-0-15',
+  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  isDefaultAdmin: true,
+};
+
+export const isDefaultAdminUser = (u: User | null | undefined): boolean => {
+  if (!u) return false;
+  return Boolean(
+    u.isDefaultAdmin ||
+    u.id === 'usr-1' ||
+    u.id === 'usr-admin-default' ||
+    u.username?.trim().toLowerCase() === 'admin'
+  );
+};
+
+export const ensureUsersIncludeDefaultAdmin = (usersList: User[]): User[] => {
+  if (!usersList || usersList.length === 0) {
+    return [DEFAULT_ADMIN_USER];
+  }
+  const hasDefaultAdmin = usersList.some((u) => isDefaultAdminUser(u));
+  if (!hasDefaultAdmin) {
+    return [DEFAULT_ADMIN_USER, ...usersList];
+  }
+  return usersList.map((u) => {
+    if (isDefaultAdminUser(u)) {
+      return {
+        ...u,
+        role: 'admin',
+        roleLabel: u.roleLabel || 'Administrador General & Contralor',
+        isDefaultAdmin: true,
+      };
+    }
+    return u;
+  });
+};
+
 export const INITIAL_USERS: User[] = [
-  {
-    id: 'usr-1',
-    username: 'admin',
-    password: '1234',
-    name: 'Ing. Roberto Mendoza',
-    email: 'admin@corpandina.com.pe',
-    role: 'admin',
-    roleLabel: 'Administrador General & Contralor',
-    department: 'Dirección y Finanzas',
-    dni: '09482716',
-    cargo: 'Contralor General & Administrador',
-    cuentaBancaria: 'BCP Cta Ahorros 193-94829102-0-15',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  },
+  DEFAULT_ADMIN_USER,
   {
     id: 'usr-2',
     username: 'jfernandez',

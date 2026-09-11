@@ -16,8 +16,11 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 import { User, UserRole } from '../types';
+import { isDefaultAdminUser } from '../initialData';
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -86,6 +89,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     );
   }
 
+  const currentlyEditingUser = editingUserId ? users.find((u) => u.id === editingUserId) : null;
+  const isEditingDefaultAdmin = Boolean(currentlyEditingUser && isDefaultAdminUser(currentlyEditingUser));
+
   const handleStartEdit = (u: User) => {
     setEditingUserId(u.id);
     setFormData({ ...u });
@@ -106,6 +112,24 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       department: 'Operaciones',
       dni: '',
       cargo: 'Supervisor de Área',
+      cuentaBancaria: '',
+      avatar: DEFAULT_AVATAR,
+    });
+  };
+
+  const handleStartAddAdmin = () => {
+    setIsAdding(true);
+    setEditingUserId(null);
+    setFormError(null);
+    setFormData({
+      username: '',
+      password: '1234',
+      name: '',
+      email: '',
+      role: 'admin',
+      department: 'Dirección General y Finanzas',
+      dni: '',
+      cargo: 'Administrador General & Contralor',
       cuentaBancaria: '',
       avatar: DEFAULT_AVATAR,
     });
@@ -193,14 +217,18 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     const existing = users.find((u) => u.id === editingUserId);
     if (!existing) return;
 
+    const isTargetDefaultAdmin = isDefaultAdminUser(existing);
+
     const updated: User = {
       ...existing,
       ...formData,
-      username: (formData.username || existing.username).trim().toLowerCase(),
+      username: isTargetDefaultAdmin ? existing.username : (formData.username || existing.username).trim().toLowerCase(),
       name: (formData.name || existing.name).trim(),
-      email: (formData.email || `${formData.username}@empresa.pe`).trim(),
+      email: (formData.email || `${formData.username || existing.username}@empresa.pe`).trim(),
+      role: isTargetDefaultAdmin ? 'admin' : ((formData.role as UserRole) || existing.role),
+      isDefaultAdmin: isTargetDefaultAdmin ? true : existing.isDefaultAdmin,
       roleLabel:
-        formData.role === 'admin'
+        isTargetDefaultAdmin || formData.role === 'admin'
           ? 'Administrador General & Contralor'
           : formData.role === 'gerente'
           ? 'Gerente de Área (Aprobador)'
@@ -217,6 +245,8 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
   const handleSaveNew = () => {
     if (!validateForm(true)) return;
 
+    const isNewRoleAdmin = formData.role === 'admin';
+
     const newUser: User = {
       id: `usr-${Date.now()}`,
       username: (formData.username || '').trim().toLowerCase(),
@@ -224,6 +254,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
       name: (formData.name || '').trim(),
       email: (formData.email || `${formData.username}@empresa.pe`).trim(),
       role: (formData.role as UserRole) || 'rendidor',
+      isDefaultAdmin: false,
       roleLabel:
         formData.role === 'admin'
           ? 'Administrador General & Contralor'
@@ -232,9 +263,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           : formData.role === 'contador'
           ? 'Auditor Contable & Tesorería'
           : 'Supervisor Técnico (Rendidor)',
-      department: formData.department || 'Operaciones',
+      department: formData.department || (isNewRoleAdmin ? 'Dirección General y Finanzas' : 'Operaciones'),
       dni: formData.dni || '',
-      cargo: formData.cargo || 'Supervisor de Área',
+      cargo: formData.cargo || (isNewRoleAdmin ? 'Administrador General' : 'Supervisor de Área'),
       cuentaBancaria: formData.cuentaBancaria || '',
       avatar: formData.avatar || DEFAULT_AVATAR,
     };
@@ -246,6 +277,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const handleConfirmDelete = () => {
     if (!userToDelete) return;
+    if (isDefaultAdminUser(userToDelete)) {
+      setUserToDelete(null);
+      return;
+    }
     onDeleteUser(userToDelete.id);
     if (editingUserId === userToDelete.id) {
       setEditingUserId(null);
@@ -314,14 +349,26 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
           </div>
 
           {!isAdding && !editingUserId && (
-            <button
-              id="btn-crear-nuevo-usuario"
-              onClick={handleStartAdd}
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer active:scale-98 shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Crear Nuevo Usuario</span>
-            </button>
+            <div className="flex items-center space-x-2 shrink-0">
+              <button
+                id="btn-crear-nuevo-administrador"
+                onClick={handleStartAddAdmin}
+                className="px-3 py-2 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
+                title="Crear un nuevo usuario con permisos completos de Administrador General"
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-200" />
+                <span>+ Nuevo Administrador</span>
+              </button>
+
+              <button
+                id="btn-crear-nuevo-usuario"
+                onClick={handleStartAdd}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold rounded-lg flex items-center space-x-1.5 shadow-sm transition-all cursor-pointer active:scale-98"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Nuevo Usuario</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -332,15 +379,44 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
             <div className="p-4 sm:p-5 bg-indigo-50/70 rounded-2xl border-2 border-indigo-200 shadow-sm space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between pb-2 border-b border-indigo-200/80">
                 <div className="flex items-center space-x-2">
-                  <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
-                    {isAdding ? <Plus className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                  <div
+                    className={`p-1.5 rounded-lg text-white ${
+                      formData.role === 'admin' || isEditingDefaultAdmin ? 'bg-purple-700' : 'bg-indigo-600'
+                    }`}
+                  >
+                    {isEditingDefaultAdmin || formData.role === 'admin' ? (
+                      <Shield className="w-4 h-4" />
+                    ) : isAdding ? (
+                      <Plus className="w-4 h-4" />
+                    ) : (
+                      <Edit2 className="w-4 h-4" />
+                    )}
                   </div>
                   <div>
-                    <h4 className="text-xs sm:text-sm font-bold text-indigo-950 uppercase tracking-wider">
-                      {isAdding ? 'Formulario: Crear Nuevo Usuario' : `Editar Usuario: ${formData.name || ''}`}
+                    <h4 className="text-xs sm:text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center space-x-2">
+                      <span>
+                        {isAdding
+                          ? formData.role === 'admin'
+                            ? 'Crear Nuevo Administrador General'
+                            : 'Formulario: Crear Nuevo Usuario'
+                          : isEditingDefaultAdmin
+                          ? `Editar Administrador por Defecto: ${formData.name || ''}`
+                          : `Editar Usuario: ${formData.name || ''}`}
+                      </span>
+                      {isEditingDefaultAdmin && (
+                        <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-900 text-[10px] font-bold border border-purple-300">
+                          CUENTA PROTEGIDA
+                        </span>
+                      )}
                     </h4>
                     <p className="text-[11px] text-indigo-700">
-                      Complete los datos del colaborador y seleccione una foto desde su equipo
+                      {isAdding
+                        ? formData.role === 'admin'
+                          ? 'El nuevo usuario tendrá privilegios completos de administración, configuración y aprobación.'
+                          : 'Complete los datos del colaborador y seleccione una foto desde su equipo'
+                        : isEditingDefaultAdmin
+                        ? 'Usuario maestro predeterminado del sistema (Protegido permanentemente contra eliminación).'
+                        : 'Actualice los datos o la fotografía de perfil del colaborador.'}
                     </p>
                   </div>
                 </div>
@@ -486,15 +562,28 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Usuario de Acceso *</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Usuario de Acceso * {isEditingDefaultAdmin && <span className="text-[10px] text-purple-700 font-bold">(Fijo)</span>}
+                  </label>
                   <input
                     type="text"
                     required
+                    readOnly={isEditingDefaultAdmin}
                     value={formData.username || ''}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     placeholder="ej. jperez"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono font-bold text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-lg font-mono font-bold outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      isEditingDefaultAdmin
+                        ? 'bg-purple-50/70 border-purple-300 text-purple-900 cursor-not-allowed'
+                        : 'bg-white border-slate-300 text-indigo-700'
+                    }`}
                   />
+                  {isEditingDefaultAdmin && (
+                    <p className="mt-1 text-[10px] text-purple-700 font-semibold flex items-center space-x-1">
+                      <Shield className="w-3 h-3 shrink-0" />
+                      <span>El usuario maestro por defecto del sistema no puede ser modificado.</span>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -519,17 +608,35 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Rol en el Sistema *</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Rol en el Sistema * {isEditingDefaultAdmin && <span className="text-[10px] text-purple-700 font-bold">(Inmutable)</span>}
+                  </label>
                   <select
                     value={formData.role || 'rendidor'}
+                    disabled={isEditingDefaultAdmin}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-lg font-semibold outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      isEditingDefaultAdmin
+                        ? 'bg-purple-50/70 border-purple-300 text-purple-950 cursor-not-allowed'
+                        : 'bg-white border-slate-300 text-slate-900'
+                    }`}
                   >
-                    <option value="admin">Administrador General & Contralor</option>
+                    <option value="admin">Administrador General & Contralor (Acceso Total)</option>
                     <option value="gerente">Gerente de Área (Aprobador)</option>
                     <option value="rendidor">Supervisor Técnico (Rendidor)</option>
                     <option value="contador">Auditor Contable & Tesorería</option>
                   </select>
+                  {isEditingDefaultAdmin ? (
+                    <p className="mt-1 text-[10px] text-purple-700 font-semibold flex items-center space-x-1">
+                      <Shield className="w-3 h-3 shrink-0" />
+                      <span>El Administrador por defecto debe conservar su rol de Administrador General.</span>
+                    </p>
+                  ) : formData.role === 'admin' ? (
+                    <p className="mt-1 text-[11px] text-purple-700 font-semibold flex items-center space-x-1">
+                      <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                      <span>Concede permisos totales: gestión de usuarios, autorizaciones y auditoría.</span>
+                    </p>
+                  ) : null}
                 </div>
 
                 <div>
@@ -583,17 +690,24 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               <div className="pt-3 border-t border-indigo-200/80 flex items-center justify-between">
                 <div>
                   {editingUserId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = users.find((u) => u.id === editingUserId);
-                        if (target) setUserToDelete(target);
-                      }}
-                      className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Eliminar Este Usuario</span>
-                    </button>
+                    isEditingDefaultAdmin ? (
+                      <div className="px-3 py-2 bg-purple-100 border border-purple-300 text-purple-900 rounded-lg font-bold text-xs flex items-center space-x-1.5 shadow-2xs">
+                        <Shield className="w-4 h-4 text-purple-700 shrink-0" />
+                        <span>Administrador por defecto protegido contra eliminación</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = users.find((u) => u.id === editingUserId);
+                          if (target) setUserToDelete(target);
+                        }}
+                        className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg font-bold text-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Eliminar Este Usuario</span>
+                      </button>
+                    )
                   )}
                 </div>
 
@@ -648,12 +762,13 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                   ) : (
                     filteredUsers.map((u) => {
                       const isSelf = currentUser?.id === u.id;
+                      const isDefaultAdmin = isDefaultAdminUser(u);
                       return (
                         <tr
                           key={u.id}
                           className={`hover:bg-slate-50 transition-colors ${
-                            editingUserId === u.id ? 'bg-indigo-50/70 font-medium' : ''
-                          }`}
+                            isDefaultAdmin ? 'bg-purple-50/25' : ''
+                          } ${editingUserId === u.id ? 'bg-indigo-50/70 font-medium' : ''}`}
                         >
                           <td className="py-3 px-3.5">
                             <div className="flex items-center space-x-2.5">
@@ -661,21 +776,37 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                                 <img
                                   src={u.avatar || DEFAULT_AVATAR}
                                   alt={u.name}
-                                  className="w-8 h-8 rounded-full object-cover border-2 border-indigo-200 shadow-xs shrink-0"
+                                  className={`w-8 h-8 rounded-full object-cover border-2 shadow-xs shrink-0 ${
+                                    isDefaultAdmin ? 'border-purple-400 ring-2 ring-purple-200' : 'border-indigo-200'
+                                  }`}
                                   referrerPolicy="no-referrer"
                                 />
-                                {u.avatar && u.avatar.startsWith('data:image') && (
+                                {isDefaultAdmin ? (
+                                  <span
+                                    className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-purple-700 text-white rounded-full border border-white flex items-center justify-center text-[8px] font-bold"
+                                    title="Administrador Maestro Protegido"
+                                  >
+                                    ★
+                                  </span>
+                                ) : u.avatar && u.avatar.startsWith('data:image') ? (
                                   <span
                                     className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"
                                     title="Foto local cargada"
                                   />
-                                )}
+                                ) : null}
                               </div>
-                              <div className="font-mono font-bold text-indigo-700">
-                                @{u.username}
-                                {isSelf && (
-                                  <span className="ml-1.5 px-1.5 py-0.2 text-[9px] bg-indigo-100 text-indigo-800 rounded font-sans font-bold">
-                                    Tú
+                              <div>
+                                <div className="font-mono font-bold text-indigo-700 flex items-center space-x-1">
+                                  <span>@{u.username}</span>
+                                  {isSelf && (
+                                    <span className="px-1.5 py-0.2 text-[9px] bg-indigo-100 text-indigo-800 rounded font-sans font-bold">
+                                      Tú
+                                    </span>
+                                  )}
+                                </div>
+                                {isDefaultAdmin && (
+                                  <span className="text-[9px] font-bold text-purple-700 uppercase tracking-tight block">
+                                    Admin por Defecto
                                   </span>
                                 )}
                               </div>
@@ -683,24 +814,38 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                           </td>
 
                           <td className="py-3 px-3.5 font-semibold text-slate-900">
-                            <div>{u.name}</div>
+                            <div className="flex items-center space-x-1.5">
+                              <span>{u.name}</span>
+                              {isDefaultAdmin && (
+                                <span className="px-1.5 py-0.2 text-[9px] bg-purple-100 text-purple-800 border border-purple-200 rounded font-bold">
+                                  Principal
+                                </span>
+                              )}
+                            </div>
                             <div className="text-[10px] text-slate-400 font-normal">{u.email}</div>
                           </td>
 
                           <td className="py-3 px-3.5">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase inline-block ${
-                                u.role === 'admin'
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-200'
-                                  : u.role === 'gerente'
-                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                  : u.role === 'contador'
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
-                              }`}
-                            >
-                              {u.role}
-                            </span>
+                            {isDefaultAdmin ? (
+                              <div className="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-purple-100 text-purple-900 border border-purple-300">
+                                <Shield className="w-3 h-3 text-purple-700 shrink-0" />
+                                <span>ADMIN (PROTEGIDO)</span>
+                              </div>
+                            ) : (
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase inline-block ${
+                                  u.role === 'admin'
+                                    ? 'bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-900 border border-purple-300'
+                                    : u.role === 'gerente'
+                                    ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                    : u.role === 'contador'
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                }`}
+                              >
+                                {u.role === 'admin' ? 'ADMINISTRADOR' : u.role}
+                              </span>
+                            )}
                           </td>
 
                           <td className="py-3 px-3.5 text-slate-600">
@@ -729,23 +874,34 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                               </button>
 
                               {/* Delete Button */}
-                              <button
-                                type="button"
-                                onClick={() => setUserToDelete(u)}
-                                disabled={isSelf}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                  isSelf
-                                    ? 'text-slate-300 cursor-not-allowed opacity-50'
-                                    : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
-                                }`}
-                                title={
-                                  isSelf
-                                    ? 'No puedes eliminar tu propia sesión activa'
-                                    : 'Eliminar usuario de la plataforma'
-                                }
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {isDefaultAdmin ? (
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="p-1.5 rounded-lg text-purple-300 cursor-not-allowed opacity-60 bg-purple-50"
+                                  title="El Administrador por defecto está protegido permanentemente y no puede ser eliminado."
+                                >
+                                  <Shield className="w-4 h-4 text-purple-400" />
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setUserToDelete(u)}
+                                  disabled={isSelf}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    isSelf
+                                      ? 'text-slate-300 cursor-not-allowed opacity-50'
+                                      : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50'
+                                  }`}
+                                  title={
+                                    isSelf
+                                      ? 'No puedes eliminar tu propia sesión activa'
+                                      : 'Eliminar usuario de la plataforma'
+                                  }
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -800,7 +956,17 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               </div>
             </div>
 
-            {currentUser?.id === userToDelete.id ? (
+            {isDefaultAdminUser(userToDelete) ? (
+              <div className="p-3.5 bg-purple-50 border border-purple-300 rounded-xl text-purple-950 text-xs space-y-1">
+                <div className="flex items-center space-x-1.5 font-bold text-purple-900">
+                  <Shield className="w-4 h-4 text-purple-700 shrink-0" />
+                  <span>Usuario Maestro Protegido</span>
+                </div>
+                <p>
+                  Este es el <strong>Administrador por Defecto</strong> del sistema. Por políticas de integridad y seguridad de la plataforma, este usuario no puede ser eliminado.
+                </p>
+              </div>
+            ) : currentUser?.id === userToDelete.id ? (
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 text-xs">
                 <strong>Operación Bloqueada:</strong> No puedes eliminar tu propio usuario mientras tienes la sesión activa.
               </div>
@@ -826,6 +992,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 type="button"
                 id="btn-confirm-delete-user"
                 disabled={
+                  isDefaultAdminUser(userToDelete) ||
                   currentUser?.id === userToDelete.id ||
                   (userToDelete.role === 'admin' && users.filter((u) => u.role === 'admin').length <= 1)
                 }

@@ -13,6 +13,7 @@ export interface User {
   cargo?: string;
   cuentaBancaria?: string;
   avatar: string;
+  isDefaultAdmin?: boolean;
 }
 
 export type TipoDocumento =
