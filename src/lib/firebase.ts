@@ -95,15 +95,15 @@ export async function saveToCloud(partialState: CloudStatePayload, forceEmptyRen
   try {
     const docRef = doc(db, COLLECTION_SYSTEM, DOC_STATE);
 
-    // Protección anti-pérdida multi-dispositivo:
-    // Si un dispositivo nuevo o sin caché intenta guardar rendiciones vacías pero en la nube ya hay datos,
+    // Protección anti-pérdida multi-dispositivo y anti-borrado accidental:
+    // Si un dispositivo nuevo, pestaña o proceso intenta guardar rendiciones vacías pero en la nube ya hay datos,
     // preservamos los datos remotos en vez de borrarlos.
     if (!forceEmptyRendiciones) {
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const remoteData = snap.data() as CloudStatePayload;
         if (partialState.rendiciones && partialState.rendiciones.length === 0 && remoteData.rendiciones && remoteData.rendiciones.length > 0) {
-          console.warn('Protección de nube activada: se evitó sobreescribir rendiciones existentes en la nube con estado vacío de dispositivo nuevo.');
+          console.warn('Protección de nube activada: se evitó sobreescribir rendiciones existentes en la nube con estado vacío.');
           delete partialState.rendiciones;
         }
         if (partialState.surplusExpenses && partialState.surplusExpenses.length === 0 && remoteData.surplusExpenses && remoteData.surplusExpenses.length > 0) {
@@ -120,9 +120,44 @@ export async function saveToCloud(partialState: CloudStatePayload, forceEmptyRen
       },
       { merge: true }
     );
+
+    // Respaldo de seguridad permanente secundario en Firestore
+    if (partialState.rendiciones && partialState.rendiciones.length > 0) {
+      const backupRef = doc(db, COLLECTION_SYSTEM, 'respaldo_seguridad');
+      setDoc(
+        backupRef,
+        {
+          rendiciones: partialState.rendiciones,
+          fechaRespaldo: new Date().toISOString(),
+          itemCount: partialState.rendiciones.length,
+          descripcion: 'Copia de seguridad permanente contra pérdida de datos',
+        },
+        { merge: true }
+      ).catch((e) => console.warn('Advertencia al sincronizar respaldo secundario Firestore:', e));
+    }
   } catch (error) {
     console.error('Error al guardar datos en la nube Firestore:', error);
     throw error;
+  }
+}
+
+/**
+ * Recupera el respaldo de seguridad permanente de rendiciones desde Firestore
+ */
+export async function fetchBackupRendiciones(): Promise<Rendicion[] | null> {
+  try {
+    const backupRef = doc(db, COLLECTION_SYSTEM, 'respaldo_seguridad');
+    const snap = await getDoc(backupRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.rendiciones && Array.isArray(data.rendiciones) && data.rendiciones.length > 0) {
+        return data.rendiciones as Rendicion[];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn('No se pudo recuperar el respaldo secundario de la nube:', error);
+    return null;
   }
 }
 

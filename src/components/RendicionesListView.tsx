@@ -21,6 +21,7 @@ import {
   ChevronUp,
   ArrowRight,
   Pencil,
+  RotateCcw,
 } from 'lucide-react';
 import { Rendicion, CompanySettings, CostCenter, User as UserType, SurplusExpenseItem, ExpenseItem } from '../types';
 import { calculateCuadre, exportRendicionToExcel, exportRendicionToPDF, formatCurrency } from '../utils/financial';
@@ -38,6 +39,7 @@ interface RendicionesListViewProps {
   onOpenNewWithSurplus?: (items: SurplusExpenseItem[]) => void;
   onDeleteSurplusItem?: (id: string) => void;
   onEditSurplusItem?: (updatedItem: SurplusExpenseItem) => void;
+  onRestoreInitialRendiciones?: () => void;
 }
 
 export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
@@ -51,6 +53,7 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
   onOpenNewWithSurplus,
   onDeleteSurplusItem,
   onEditSurplusItem,
+  onRestoreInitialRendiciones,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
@@ -109,7 +112,19 @@ export const RendicionesListView: React.FC<RendicionesListViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onRestoreInitialRendiciones && (
+            <button
+              id="btn-recuperar-rendiciones"
+              onClick={onRestoreInitialRendiciones}
+              className="w-full sm:w-auto px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-lg shadow-2xs flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+              title="Restaurar y proteger Rendición 1, Rendición 2 y el historial oficial"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Restaurar Rendición 1 y 2</span>
+            </button>
+          )}
+
           <button
             id="btn-nueva-rendicion"
             onClick={onOpenNewModal}
