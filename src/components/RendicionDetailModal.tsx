@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   FileSpreadsheet,
@@ -28,6 +28,8 @@ import {
   FolderOutput,
   Pencil,
   Plus,
+  Zap,
+  Calculator,
 } from 'lucide-react';
 import {
   Rendicion,
@@ -35,6 +37,8 @@ import {
   CostCenter,
   User as UserType,
   ExpenseItem,
+  TipoDocumento,
+  ClasificacionGasto,
 } from '../types';
 import {
   calculateCuadre,
@@ -121,6 +125,15 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   const [signingRole, setSigningRole] = useState<'responsable' | 'aprobador' | null>(null);
   const [tempApprovalFirma, setTempApprovalFirma] = useState<string | undefined>(undefined);
 
+  // Quick Add / Fast Cuadre State
+  const [quickTipoDoc, setQuickTipoDoc] = useState<TipoDocumento>('Factura Electrónica');
+  const [quickNum, setQuickNum] = useState('');
+  const [quickProveedor, setQuickProveedor] = useState('');
+  const [quickMonto, setQuickMonto] = useState('');
+  const [quickClasificacion, setQuickClasificacion] = useState<ClasificacionGasto>('Alimentación / Viáticos');
+  const [quickAddNotice, setQuickAddNotice] = useState<string | null>(null);
+  const quickMontoRef = useRef<HTMLInputElement>(null);
+
   if (!isOpen) return null;
 
   const cuadre = calculateCuadre(rendicion.montoAsignado, rendicion.items, company.toleranciaCuadre);
@@ -172,6 +185,44 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
     };
     const updatedItems = [...rendicion.items, newItem];
     onUpdateItems?.(rendicionId, updatedItems);
+  };
+
+  const handleQuickAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseFloat(quickMonto);
+    if (isNaN(parsed) || parsed <= 0) {
+      alert('Por favor ingrese un monto total mayor a 0 para registrar y cuadrar el documento.');
+      quickMontoRef.current?.focus();
+      return;
+    }
+
+    const nextNumber = rendicion.items.length + 1;
+    const finalNum = quickNum.trim() ? quickNum.trim().toUpperCase() : `(S/N - ÍTEM #${nextNumber})`;
+    const finalProveedor = quickProveedor.trim() ? quickProveedor.trim().toUpperCase() : '(POR REGISTRAR)';
+
+    onAddExpense?.({
+      fecha: new Date().toISOString().split('T')[0],
+      tipoDocumento: quickTipoDoc,
+      numeroComprobante: finalNum,
+      ruc: '',
+      razonSocial: finalProveedor,
+      detalle: 'Gasto registrado para cuadre (datos pendientes de regularización)',
+      clasificacionGasto: quickClasificacion,
+      centroCostosId: rendicion.centroCostosId || costCenter?.id || 'cc-1',
+      montoTotal: Number(parsed.toFixed(2)),
+      ocrVerificado: false,
+    });
+
+    setQuickAddNotice(
+      `✓ Documento por S/ ${parsed.toFixed(2)} guardado con éxito. Formulario en cero listo para el siguiente.`
+    );
+    setQuickMonto('');
+    setQuickNum('');
+    setQuickProveedor('');
+
+    setTimeout(() => {
+      quickMontoRef.current?.focus();
+    }, 50);
   };
 
   const handleActionSubmit = () => {
@@ -614,6 +665,121 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
               </div>
             </div>
 
+            {/* Quick Add Bar for Fast Cuadre (Requested by user) */}
+            {canEdit && (
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2.5 shadow-2xs animate-fadeIn">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="p-1 rounded-md bg-indigo-600 text-white">
+                      <Zap className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="text-xs font-bold text-indigo-950">
+                      Ingreso Rápido de Documentos para Cuadre Directo
+                    </span>
+                    <span className="text-[10px] text-indigo-700 bg-indigo-100/80 px-2 py-0.5 rounded font-medium">
+                      El formulario se reinicia a cero tras cada registro
+                    </span>
+                  </div>
+
+                  {cuadre.saldoRestante > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQuickMonto(cuadre.saldoRestante.toFixed(2));
+                        quickMontoRef.current?.focus();
+                        quickMontoRef.current?.select();
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
+                      title="Copiar saldo restante al campo monto para cuadre exacto"
+                    >
+                      <Calculator className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Copiar Saldo Restante ({formatCurrency(cuadre.saldoRestante)})</span>
+                    </button>
+                  )}
+                </div>
+
+                {quickAddNotice && (
+                  <div className="p-2 bg-emerald-100/90 border border-emerald-300 rounded-lg text-xs text-emerald-900 flex items-center justify-between animate-fadeIn">
+                    <span className="font-semibold">{quickAddNotice}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQuickAddNotice(null)}
+                      className="text-emerald-700 hover:text-emerald-950 font-bold ml-2 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                <form onSubmit={handleQuickAddSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                  <div className="sm:col-span-2">
+                    <select
+                      value={quickTipoDoc}
+                      onChange={(e) => setQuickTipoDoc(e.target.value as TipoDocumento)}
+                      className="w-full px-2 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="Factura Electrónica">Factura</option>
+                      <option value="Boleta Electrónica">Boleta</option>
+                      <option value="Recibo por Honorarios">R. Honorarios</option>
+                      <option value="Recibo Simple">Recibo Simple</option>
+                      <option value="Ticket">Ticket</option>
+                      <option value="Voucher / Transacción">Voucher</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="N° Comprobante (opcional)"
+                      value={quickNum}
+                      onChange={(e) => setQuickNum(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-mono font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Razón Social / Proveedor (opcional)"
+                      value={quickProveedor}
+                      onChange={(e) => setQuickProveedor(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-indigo-300 rounded-lg text-xs font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1.5 text-xs font-bold text-slate-500">S/</span>
+                      <input
+                        ref={quickMontoRef}
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        placeholder="Monto S/ *"
+                        value={quickMonto}
+                        onChange={(e) => setQuickMonto(e.target.value)}
+                        className="w-full pl-7 pr-2 py-1.5 bg-white border-2 border-indigo-500 rounded-lg text-xs font-mono font-extrabold text-indigo-950 outline-none focus:ring-2 focus:ring-indigo-600 shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 flex items-center">
+                    <button
+                      type="submit"
+                      id="btn-agregar-documento-rapido"
+                      className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                      title="Agrega el comprobante y restablece el formulario a cero para el siguiente"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>+ Agregar</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {/* Detailed Expense Table (Subtotal and IGV completely removed) */}
             <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
@@ -671,8 +837,25 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                             )}
                           </td>
                           <td className="py-2.5 px-3">
-                            <div className="font-semibold text-slate-900 line-clamp-1">{it.razonSocial}</div>
-                            <div className="text-[10px] text-slate-500 font-mono">RUC: {it.ruc}</div>
+                            <div className="flex items-center space-x-1.5 flex-wrap">
+                              <span className="font-semibold text-slate-900 line-clamp-1">{it.razonSocial}</span>
+                              {(it.razonSocial.includes('POR REGISTRAR') ||
+                                it.numeroComprobante.includes('PENDIENTE') ||
+                                it.numeroComprobante.includes('S/N') ||
+                                !it.ruc) && (
+                                <button
+                                  type="button"
+                                  onClick={() => canEdit && setEditingExpenseItem(it)}
+                                  className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                                  title="Haga clic para completar los datos fiscales (RUC, Razón Social, etc.)"
+                                >
+                                  Datos pendientes ✏️
+                                </button>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-mono">
+                              {it.ruc ? `RUC: ${it.ruc}` : <span className="text-amber-700 italic">RUC no registrado</span>}
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 text-slate-700 max-w-xs">
                             <p className="line-clamp-2">{it.detalle}</p>
@@ -989,7 +1172,10 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
           expenseItem={editingExpenseItem}
           costCenters={costCenters || (costCenter ? [costCenter] : [])}
           defaultCostCenterId={rendicion.centroCostosId}
-          onSave={(updated) => {
+          isNewMode={editingExpenseItem.id.startsWith('manual-')}
+          montoAsignado={rendicion.montoAsignado}
+          totalRendidoActual={cuadre.totalRendido}
+          onSave={(updated, continueAdding) => {
             const exists = rendicion.items.some((i) => i.id === updated.id);
             if (exists) {
               onEditExpense?.(rendicion.id, updated);
@@ -1008,7 +1194,9 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                 ocrVerificado: updated.ocrVerificado,
               });
             }
-            setEditingExpenseItem(null);
+            if (!continueAdding) {
+              setEditingExpenseItem(null);
+            }
           }}
         />
       )}
