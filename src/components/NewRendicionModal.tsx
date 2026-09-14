@@ -80,7 +80,7 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   const [numeroTransferencia, setNumeroTransferencia] = useState(`TRF-${Math.floor(10000000 + Math.random() * 90000000)}`);
   const [numeroCheque, setNumeroCheque] = useState(`CHQ-${Math.floor(10000 + Math.random() * 90000)}`);
   const [banco, setBanco] = useState('BCP - Banco de Crédito del Perú');
-  const [montoAsignado, setMontoAsignado] = useState<number>(1500.00);
+  const [montoAsignado, setMontoAsignado] = useState<number | ''>(1500.00);
   const [fechaDesembolso, setFechaDesembolso] = useState(new Date().toISOString().split('T')[0]);
 
   // Digital Signature
@@ -223,8 +223,9 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!titulo.trim() || montoAsignado <= 0) {
-      alert('Por favor ingrese el título y un monto asignado válido.');
+    const finalMonto = typeof montoAsignado === 'number' ? montoAsignado : parseFloat(montoAsignado);
+    if (!titulo.trim() || isNaN(finalMonto) || finalMonto <= 0) {
+      alert('Por favor ingrese el título y un monto desembolsado válido mayor a cero.');
       return;
     }
 
@@ -247,7 +248,7 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
       numeroTransferencia: tipoDesembolso === 'Transferencia Bancaria' ? numeroTransferencia.trim() : '',
       numeroCheque: tipoDesembolso === 'Cheque' ? numeroCheque.trim() : '',
       banco,
-      montoAsignado: Number(montoAsignado),
+      montoAsignado: Number(finalMonto.toFixed(2)),
       estado: 'borrador',
       firmaResponsable,
       fechaFirmaResponsable,
@@ -691,17 +692,47 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-indigo-950 mb-1">
-                    Monto Desembolsado (S/.) *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-indigo-950">
+                      Monto Desembolsado Exacto (S/.) *
+                    </label>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded border border-emerald-300">
+                      Sin descuentos: 100% íntegro para rendir
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
+                    min="0.01"
                     required
-                    value={montoAsignado}
-                    onChange={(e) => setMontoAsignado(parseFloat(e.target.value) || 0)}
-                    className="w-full px-2.5 py-1.5 text-sm bg-white border-2 border-indigo-500 rounded-lg font-mono font-extrabold text-indigo-900 outline-none"
+                    placeholder="0.00"
+                    value={montoAsignado === '' ? '' : montoAsignado}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setMontoAsignado(val === '' ? '' : parseFloat(val) || 0);
+                    }}
+                    className="w-full px-2.5 py-1.5 text-sm bg-white border-2 border-indigo-500 rounded-lg font-mono font-extrabold text-indigo-900 outline-none focus:ring-2 focus:ring-indigo-600"
                   />
+                  <div className="flex items-center space-x-1.5 mt-1.5 flex-wrap gap-y-1">
+                    <span className="text-[10px] text-slate-500 font-medium">Sugeridos:</span>
+                    {[300, 500, 1000, 1500].map((sug) => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => setMontoAsignado(sug)}
+                        className="px-1.5 py-0.5 bg-slate-100 hover:bg-indigo-100 text-slate-700 hover:text-indigo-800 text-[10px] font-mono font-semibold rounded border border-slate-300 cursor-pointer transition-colors"
+                      >
+                        S/ {sug}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setMontoAsignado('')}
+                      className="px-1.5 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-semibold rounded border border-rose-200 cursor-pointer transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

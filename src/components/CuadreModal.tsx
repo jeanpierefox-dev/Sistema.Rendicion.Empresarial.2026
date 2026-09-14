@@ -63,8 +63,8 @@ export const CuadreModal: React.FC<CuadreModalProps> = ({
 
   // Selection of item IDs to retain in this rendition
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
-  // Option to auto-generate simple receipt for any minor residual (<= tolerancia)
-  const [incluirReciboSimpleRemanente, setIncluirReciboSimpleRemanente] = useState(true);
+  // Option to auto-generate simple receipt for any minor residual (<= tolerancia) - default to false so no unsolicited discount is applied
+  const [incluirReciboSimpleRemanente, setIncluirReciboSimpleRemanente] = useState(false);
 
   // Auto-select items that fit into montoAsignado greedily on mount or when rendicion items change
   useEffect(() => {

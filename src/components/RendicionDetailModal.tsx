@@ -134,6 +134,10 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   const [quickAddNotice, setQuickAddNotice] = useState<string | null>(null);
   const quickMontoRef = useRef<HTMLInputElement>(null);
 
+  // In-line Monto Desembolsado edit state
+  const [isEditingMonto, setIsEditingMonto] = useState(false);
+  const [editMontoInput, setEditMontoInput] = useState('');
+
   if (!isOpen) return null;
 
   const cuadre = calculateCuadre(rendicion.montoAsignado, rendicion.items, company.toleranciaCuadre);
@@ -404,13 +408,100 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
 
               {/* Box 4: Monto Desembolsado */}
               <div className="p-3 bg-indigo-50/70 rounded-xl border border-indigo-200 space-y-1">
-                <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider block">
-                  Fondo Total Desembolsado
-                </span>
-                <p className="font-mono font-extrabold text-indigo-950 text-lg sm:text-xl">
-                  {formatCurrency(rendicion.montoAsignado)}
-                </p>
-                <p className="text-indigo-700 text-[11px] font-medium">Soles (PEN)</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider block">
+                    Fondo Total Desembolsado
+                  </span>
+                  {canEdit && !isEditingMonto && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingMonto(true);
+                        setEditMontoInput(rendicion.montoAsignado.toFixed(2));
+                      }}
+                      className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold flex items-center space-x-0.5 cursor-pointer underline decoration-dotted"
+                      title="Modificar el monto desembolsado para cuadre exacto sin descuentos"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                </div>
+
+                {isEditingMonto ? (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-xs font-bold text-slate-700">S/</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={editMontoInput}
+                        onChange={(e) => setEditMontoInput(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border-2 border-indigo-500 rounded text-xs font-mono font-extrabold text-indigo-950 outline-none"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex items-center space-x-1 flex-wrap gap-y-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = parseFloat(editMontoInput);
+                          if (!isNaN(val) && val > 0 && onUpdateMontoAsignado) {
+                            onUpdateMontoAsignado(rendicion.id, Number(val.toFixed(2)));
+                            setIsEditingMonto(false);
+                          }
+                        }}
+                        className="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded cursor-pointer"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingMonto(false)}
+                        className="px-2 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                      {rendicion.items.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onUpdateMontoAsignado) {
+                              onUpdateMontoAsignado(rendicion.id, cuadre.totalRendido);
+                              setIsEditingMonto(false);
+                            }
+                          }}
+                          className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold rounded cursor-pointer border border-emerald-300"
+                          title="Fijar desembolso igual a los comprobantes para cuadre a cero exacto"
+                        >
+                          Fijar a S/ {cuadre.totalRendido.toFixed(2)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="font-mono font-extrabold text-indigo-950 text-lg sm:text-xl">
+                      {formatCurrency(rendicion.montoAsignado)}
+                    </p>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-indigo-700 font-medium">Soles (PEN)</span>
+                      {canEdit && cuadre.saldoRestante !== 0 && rendicion.items.length > 0 && onUpdateMontoAsignado && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateMontoAsignado(rendicion.id, cuadre.totalRendido)}
+                          className="px-1.5 py-0.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[10px] font-bold rounded border border-emerald-300 flex items-center space-x-1 cursor-pointer transition-colors"
+                          title="Igualar fondo al total rendido para eliminar cualquier diferencia o descuento"
+                        >
+                          <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                          <span>Cuadrar a S/ {cuadre.totalRendido.toFixed(2)}</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
                 <div className="pt-1 border-t border-indigo-200 text-[11px] text-indigo-800 font-semibold flex items-center justify-between">
                   <span>{rendicion.items.length} Comprobantes</span>
                   <span>Desemb: {rendicion.fechaDesembolso}</span>
@@ -459,24 +550,38 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                   </div>
                 </div>
 
-                {/* Único botón de cuadre solicitado */}
-                <button
-                  type="button"
-                  id="btn-ajustar-cuadrar-unico"
-                  onClick={() => setShowCuadreModal(true)}
-                  className={`w-full sm:w-auto px-4 py-2.5 rounded-lg text-xs font-bold shadow flex items-center justify-center space-x-2 transition-all cursor-pointer active:scale-95 shrink-0 ${
-                    cuadre.saldoRestante < 0
-                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold'
-                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                  }`}
-                >
-                  <Scale className="w-4 h-4 text-emerald-300" />
-                  <span>
-                    {cuadre.saldoRestante < 0
-                      ? '⚡ Cuadrar Rendición y Separar Sobrantes'
-                      : '⚡ Ajustar y Cuadrar Rendición'}
-                  </span>
-                </button>
+                <div className="flex items-center space-x-2 w-full sm:w-auto flex-wrap sm:flex-nowrap gap-y-2">
+                  {cuadre.saldoRestante !== 0 && rendicion.items.length > 0 && onUpdateMontoAsignado && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateMontoAsignado(rendicion.id, cuadre.totalRendido)}
+                      className="w-full sm:w-auto px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs active:scale-95 shrink-0"
+                      title="Ajustar fondo al total de gastos para cuadre exacto a S/ 0.00 sin descuentos"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>Cuadrar a S/ 0.00 Exacto</span>
+                    </button>
+                  )}
+
+                  {/* Único botón de cuadre solicitado */}
+                  <button
+                    type="button"
+                    id="btn-ajustar-cuadrar-unico"
+                    onClick={() => setShowCuadreModal(true)}
+                    className={`w-full sm:w-auto px-4 py-2.5 rounded-lg text-xs font-bold shadow flex items-center justify-center space-x-2 transition-all cursor-pointer active:scale-95 shrink-0 ${
+                      cuadre.saldoRestante < 0
+                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    }`}
+                  >
+                    <Scale className="w-4 h-4 text-emerald-300" />
+                    <span>
+                      {cuadre.saldoRestante < 0
+                        ? '⚡ Cuadrar Rendición y Separar Sobrantes'
+                        : '⚡ Ajustar y Cuadrar Rendición'}
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -681,21 +786,40 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                     </span>
                   </div>
 
-                  {cuadre.saldoRestante > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuickMonto(cuadre.saldoRestante.toFixed(2));
-                        quickMontoRef.current?.focus();
-                        quickMontoRef.current?.select();
-                      }}
-                      className="px-2.5 py-1 bg-white hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs self-start sm:self-auto"
-                      title="Copiar saldo restante al campo monto para cuadre exacto"
-                    >
-                      <Calculator className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Copiar Saldo Restante ({formatCurrency(cuadre.saldoRestante)})</span>
-                    </button>
-                  )}
+                  <div className="flex items-center space-x-2 self-start sm:self-auto flex-wrap gap-y-1">
+                    {cuadre.saldoRestante !== 0 && rendicion.items.length > 0 && onUpdateMontoAsignado && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onUpdateMontoAsignado(rendicion.id, cuadre.totalRendido);
+                          setQuickAddNotice(
+                            `¡Cuadre exacto aplicado! El fondo desembolsado se ajustó a S/ ${cuadre.totalRendido.toFixed(2)} (S/ 0.00 de diferencia, sin ningún descuento).`
+                          );
+                        }}
+                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Ajustar desembolso al total de comprobantes para cuadre exacto a cero"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                        <span>Cuadre Exacto S/ 0.00 (Sin Descuentos)</span>
+                      </button>
+                    )}
+
+                    {cuadre.saldoRestante > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuickMonto(cuadre.saldoRestante.toFixed(2));
+                          quickMontoRef.current?.focus();
+                          quickMontoRef.current?.select();
+                        }}
+                        className="px-2.5 py-1 bg-white hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-300 flex items-center space-x-1 transition-colors cursor-pointer shadow-2xs"
+                        title="Copiar saldo restante al campo monto para cuadre exacto"
+                      >
+                        <Calculator className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>Copiar Saldo ({formatCurrency(cuadre.saldoRestante)})</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {quickAddNotice && (
