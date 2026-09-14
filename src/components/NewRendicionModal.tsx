@@ -14,6 +14,7 @@ import {
   Layers,
   FileText,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import {
   Rendicion,
@@ -40,6 +41,8 @@ interface NewRendicionModalProps {
   nextCode: string;
   destinatarioAccounts?: DestinatarioAccount[];
   onAddDestinatarioAccount?: (account: DestinatarioAccount) => void;
+  onDeleteDestinatarioAccount?: (id: string) => void;
+  onClearAllDestinatarioAccounts?: () => void;
   availableSurplus?: SurplusExpenseItem[];
   preselectedSurplus?: SurplusExpenseItem[];
 }
@@ -55,6 +58,8 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   nextCode,
   destinatarioAccounts = [],
   onAddDestinatarioAccount,
+  onDeleteDestinatarioAccount,
+  onClearAllDestinatarioAccounts,
   availableSurplus = [],
   preselectedSurplus = [],
 }) => {
@@ -71,7 +76,7 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   // Banking accounts
   const defaultCuentaOrigen = company.cuentasOrigenDisponibles?.[0]
     ? `${company.cuentasOrigenDisponibles[0].banco} - ${company.cuentasOrigenDisponibles[0].numeroCuenta}`
-    : 'BCP Cta Cte 191-23847291-0-12 (Empresa)';
+    : '';
   const [cuentaOrigen, setCuentaOrigen] = useState(defaultCuentaOrigen);
   const [customCuentaOrigen, setCustomCuentaOrigen] = useState('');
 
@@ -217,8 +222,8 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
   const selectedCostCenter = costCenters.find((c) => c.id === centroCostosId);
 
   const finalCuentaOrigen =
-    cuentaOrigen === 'OTRO' && customCuentaOrigen.trim()
-      ? customCuentaOrigen.trim()
+    (!cuentaOrigen || cuentaOrigen === 'OTRO' || (company.cuentasOrigenDisponibles || []).length === 0)
+      ? (customCuentaOrigen.trim() || 'Cuenta Bancaria de la Empresa')
       : cuentaOrigen;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -561,23 +566,61 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
               )}
 
               {/* Selector de Cuenta de Destinatario */}
-              <div className="p-3 bg-white rounded-xl border border-indigo-200">
-                <label className="block text-xs font-bold text-indigo-950 mb-1">
-                  Seleccionar Cuenta de Destinatario Registrada (Auto-completado directo)
-                </label>
+              <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-indigo-950">
+                    Seleccionar Cuenta de Destinatario Registrada ({destinatarioAccounts.length} disponibles)
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    {selectedAccountId && onDeleteDestinatarioAccount && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('¿Eliminar esta cuenta del directorio de destinatarios?')) {
+                            onDeleteDestinatarioAccount(selectedAccountId);
+                            setSelectedAccountId('');
+                          }
+                        }}
+                        className="text-[11px] text-rose-600 hover:text-rose-700 font-semibold flex items-center space-x-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Borrar seleccionada</span>
+                      </button>
+                    )}
+                    {destinatarioAccounts.length > 0 && onClearAllDestinatarioAccounts && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('¿Desea borrar todas las cuentas de destinatarios registradas para agregar cuentas propias?')) {
+                            onClearAllDestinatarioAccounts();
+                            setSelectedAccountId('');
+                          }
+                        }}
+                        className="text-[11px] text-slate-500 hover:text-rose-600 font-medium underline cursor-pointer"
+                      >
+                        Borrar todas
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <select
                   value={selectedAccountId}
                   onChange={(e) => handleSelectAccount(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg font-medium text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">-- Seleccione una cuenta para cargar datos directos del destinatario --</option>
+                  <option value="">
+                    {destinatarioAccounts.length === 0
+                      ? '-- No hay cuentas registradas. Ingrese los datos manualmente abajo o agregue una nueva --'
+                      : '-- Seleccione una cuenta para autocompletar datos del destinatario --'}
+                  </option>
                   {destinatarioAccounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
                       [{acc.banco}] {acc.numeroCuenta} — {acc.nombreDestinatario} ({acc.tipoCuenta} {acc.alias ? `• ${acc.alias}` : ''})
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-slate-500 mt-1">
+                <p className="text-[11px] text-slate-500">
                   Al seleccionar una cuenta, se autocompletan inmediatamente el nombre completo del destinatario y los datos de destino.
                 </p>
               </div>
@@ -593,21 +636,25 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
                     onChange={(e) => setCuentaOrigen(e.target.value)}
                     className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-medium text-slate-900 outline-none"
                   >
-                    {company.cuentasOrigenDisponibles?.map((cta) => (
-                      <option
-                        key={cta.id}
-                        value={`${cta.banco} - ${cta.numeroCuenta} (${cta.tipoCuenta})`}
-                      >
-                        {cta.banco} - {cta.numeroCuenta} ({cta.tipoCuenta})
-                      </option>
-                    ))}
-                    <option value="OTRO">Otra cuenta de origen bancaria...</option>
+                    {(company.cuentasOrigenDisponibles || []).length > 0 ? (
+                      company.cuentasOrigenDisponibles?.map((cta) => (
+                        <option
+                          key={cta.id}
+                          value={`${cta.banco} - ${cta.numeroCuenta} (${cta.tipoCuenta})`}
+                        >
+                          {cta.banco} - {cta.numeroCuenta} ({cta.tipoCuenta})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="">-- Sin cuentas de empresa configuradas (ingreso manual) --</option>
+                    )}
+                    <option value="OTRO">Otra cuenta de origen bancaria (ingreso manual)...</option>
                   </select>
 
-                  {cuentaOrigen === 'OTRO' && (
+                  {((company.cuentasOrigenDisponibles || []).length === 0 || cuentaOrigen === 'OTRO' || !cuentaOrigen) && (
                     <input
                       type="text"
-                      placeholder="Ingrese banco y N° de cuenta de origen"
+                      placeholder="Ingrese banco y N° de cuenta de origen de la empresa"
                       value={customCuentaOrigen}
                       onChange={(e) => setCustomCuentaOrigen(e.target.value)}
                       className="w-full mt-1.5 px-2.5 py-1.5 text-xs bg-white border border-indigo-400 rounded-lg font-mono text-slate-900"

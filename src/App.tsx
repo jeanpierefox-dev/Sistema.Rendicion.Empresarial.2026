@@ -6,6 +6,7 @@ import {
   INITIAL_RENDICIONES,
   INITIAL_NOTIFICATIONS,
   INITIAL_DESTINATARIO_ACCOUNTS,
+  DEMO_ACCOUNT_IDS,
 } from './initialData';
 import {
   User,
@@ -65,7 +66,13 @@ export default function App() {
     const saved = localStorage.getItem('corpgastos_company');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: CompanySettings = JSON.parse(saved);
+        return {
+          ...parsed,
+          cuentasOrigenDisponibles: (parsed.cuentasOrigenDisponibles || []).filter(
+            (c) => !DEMO_ACCOUNT_IDS.has(c.id)
+          ),
+        };
       } catch (e) {}
     }
     return INITIAL_COMPANY;
@@ -109,10 +116,15 @@ export default function App() {
   });
 
   const [destinatarioAccounts, setDestinatarioAccounts] = useState<DestinatarioAccount[]>(() => {
+    const cleared = localStorage.getItem('corpgastos_destinatarios_cleared');
+    if (cleared === 'true') {
+      return [];
+    }
     const saved = localStorage.getItem('corpgastos_destinatario_accounts');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: DestinatarioAccount[] = JSON.parse(saved);
+        return parsed.filter((d) => !DEMO_ACCOUNT_IDS.has(d.id));
       } catch (e) {}
     }
     return INITIAL_DESTINATARIO_ACCOUNTS;
@@ -156,12 +168,57 @@ export default function App() {
         (cloudData) => {
           if (cloudData && (cloudData.rendiciones || cloudData.users || cloudData.company)) {
             isSyncingFromCloud.current = true;
-            if (cloudData.company) setCompany(cloudData.company);
+
+            // 1. Company Settings & Origin Bank Accounts
+            if (cloudData.company) {
+              const sanitizedCompany: CompanySettings = {
+                ...cloudData.company,
+                cuentasOrigenDisponibles: (cloudData.company.cuentasOrigenDisponibles || []).filter(
+                  (c) => !DEMO_ACCOUNT_IDS.has(c.id)
+                ),
+              };
+
+              // Check if user has customized company settings locally
+              const savedLocalCompany = localStorage.getItem('corpgastos_company');
+              let keepLocal = false;
+              if (savedLocalCompany) {
+                try {
+                  const parsedLocal: CompanySettings = JSON.parse(savedLocalCompany);
+                  if (
+                    parsedLocal.razonSocial &&
+                    parsedLocal.razonSocial !== INITIAL_COMPANY.razonSocial &&
+                    sanitizedCompany.razonSocial === INITIAL_COMPANY.razonSocial
+                  ) {
+                    keepLocal = true;
+                    // Persist user's local company to cloud immediately
+                    saveToCloud({ company: parsedLocal });
+                  }
+                } catch (e) {}
+              }
+
+              if (!keepLocal) {
+                setCompany(sanitizedCompany);
+              }
+            }
+
+            // 2. Destinatario Accounts
+            const destinatariosCleared = localStorage.getItem('corpgastos_destinatarios_cleared');
+            if (destinatariosCleared === 'true') {
+              setDestinatarioAccounts([]);
+              if (cloudData.destinatarioAccounts && cloudData.destinatarioAccounts.length > 0) {
+                saveToCloud({ destinatarioAccounts: [] });
+              }
+            } else if (cloudData.destinatarioAccounts !== undefined) {
+              const sanitizedDest = (cloudData.destinatarioAccounts || []).filter(
+                (d) => !DEMO_ACCOUNT_IDS.has(d.id)
+              );
+              setDestinatarioAccounts(sanitizedDest);
+            }
+
             if (cloudData.users && cloudData.users.length > 0) setUsers(cloudData.users);
             if (cloudData.costCenters && cloudData.costCenters.length > 0) setCostCenters(cloudData.costCenters);
             if (cloudData.rendiciones) setRendiciones(cloudData.rendiciones);
             if (cloudData.surplusExpenses) setSurplusExpenses(cloudData.surplusExpenses);
-            if (cloudData.destinatarioAccounts) setDestinatarioAccounts(cloudData.destinatarioAccounts);
             if (cloudData.notifications) setNotifications(cloudData.notifications);
 
             hasLoadedInitialCloud.current = true;
@@ -211,7 +268,7 @@ export default function App() {
 
   // Function to dispatch updates to Firestore safely without race conditions
   const dispatchCloudSave = (partial?: Partial<CloudStatePayload>) => {
-    if (isSyncingFromCloud.current || !hasLoadedInitialCloud.current) return;
+    if (isSyncingFromCloud.current) return;
     setCloudStatus('syncing');
 
     if (cloudSaveTimer.current) {
@@ -303,10 +360,143 @@ export default function App() {
   }, [destinatarioAccounts]);
 
   const handleAddDestinatarioAccount = (account: DestinatarioAccount) => {
-    const updated = [account, ...destinatarioAccounts];
+    const cleanAccount = {
+      ...account,
+      id: account.id || `dest-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    };
+    const updated = [cleanAccount, ...destinatarioAccounts.filter((d) => !DEMO_ACCOUNT_IDS.has(d.id))];
     setDestinatarioAccounts(updated);
+    localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(updated));
+    localStorage.removeItem('corpgastos_destinatarios_cleared');
     dispatchCloudSave({ destinatarioAccounts: updated });
-    showToast('Cuenta de Destinatario Registrada', `Se guardó la cuenta de ${account.nombreDestinatario} (${account.banco})`);
+    showToast('Cuenta de Destinatario Registrada', `Se guardó la cuenta de ${cleanAccount.nombreDestinatario} (${cleanAccount.banco})`);
+  };
+
+  const handleDeleteDestinatarioAccount = (id: string) => {
+    const updated = destinatarioAccounts.filter((a) => a.id !== id);
+    setDestinatarioAccounts(updated);
+    localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(updated));
+    if (updated.length === 0) {
+      localStorage.setItem('corpgastos_destinatarios_cleared', 'true');
+    }
+    dispatchCloudSave({ destinatarioAccounts: updated });
+    showToast('Cuenta Eliminada', 'Se eliminó la cuenta del directorio de destinatarios.');
+  };
+
+  const handleClearAllDestinatarioAccounts = async () => {
+    setDestinatarioAccounts([]);
+    localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify([]));
+    localStorage.setItem('corpgastos_destinatarios_cleared', 'true');
+    try {
+      await saveToCloud({
+        company,
+        users,
+        costCenters,
+        rendiciones,
+        surplusExpenses,
+        destinatarioAccounts: [],
+        notifications,
+      });
+      setCloudStatus('synced');
+    } catch (e) {
+      dispatchCloudSave({ destinatarioAccounts: [] });
+    }
+    showToast(
+      'Cuentas de Destinatarios Borradas',
+      'Se eliminaron todas las cuentas de destinatarios para ingresar cuentas propias de su empresa.'
+    );
+  };
+
+  const handleDeleteCompanyAccount = (id: string) => {
+    const updatedCompany: CompanySettings = {
+      ...company,
+      cuentasOrigenDisponibles: (company.cuentasOrigenDisponibles || []).filter((c) => c.id !== id),
+    };
+    setCompany(updatedCompany);
+    localStorage.setItem('corpgastos_company', JSON.stringify(updatedCompany));
+    dispatchCloudSave({ company: updatedCompany });
+    showToast('Cuenta de Empresa Eliminada', 'Se removió la cuenta bancaria de origen.');
+  };
+
+  const handleClearAllCompanyAccounts = async () => {
+    const updatedCompany: CompanySettings = {
+      ...company,
+      cuentasOrigenDisponibles: [],
+    };
+    setCompany(updatedCompany);
+    localStorage.setItem('corpgastos_company', JSON.stringify(updatedCompany));
+    try {
+      await saveToCloud({
+        company: updatedCompany,
+        users,
+        costCenters,
+        rendiciones,
+        surplusExpenses,
+        destinatarioAccounts,
+        notifications,
+      });
+      setCloudStatus('synced');
+    } catch (e) {
+      dispatchCloudSave({ company: updatedCompany });
+    }
+    showToast(
+      'Cuentas de Empresa Borradas',
+      'Se eliminaron las cuentas bancarias de la empresa para ingresar las propias.'
+    );
+  };
+
+  const handleSaveCompanySettings = async (
+    updatedCompany: CompanySettings,
+    updatedDestinatarios?: DestinatarioAccount[]
+  ) => {
+    const cleanCompany: CompanySettings = {
+      ...updatedCompany,
+      cuentasOrigenDisponibles: (updatedCompany.cuentasOrigenDisponibles || []).filter(
+        (c) => !DEMO_ACCOUNT_IDS.has(c.id)
+      ),
+    };
+    setCompany(cleanCompany);
+    localStorage.setItem('corpgastos_company', JSON.stringify(cleanCompany));
+
+    let cleanDestinatarios = destinatarioAccounts;
+    if (updatedDestinatarios !== undefined) {
+      cleanDestinatarios = updatedDestinatarios.filter((d) => !DEMO_ACCOUNT_IDS.has(d.id));
+      setDestinatarioAccounts(cleanDestinatarios);
+      localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(cleanDestinatarios));
+      if (cleanDestinatarios.length === 0) {
+        localStorage.setItem('corpgastos_destinatarios_cleared', 'true');
+      } else {
+        localStorage.removeItem('corpgastos_destinatarios_cleared');
+      }
+    }
+
+    setCloudStatus('syncing');
+    try {
+      await saveToCloud({
+        company: cleanCompany,
+        destinatarioAccounts: cleanDestinatarios,
+        users,
+        costCenters,
+        rendiciones,
+        surplusExpenses,
+        notifications,
+      });
+      setCloudStatus('synced');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncTime(timeStr);
+      showToast(
+        'Configuración Corporativa Guardada',
+        `Los datos y cuentas de la empresa han quedado guardados permanentemente en la nube Firestore (${timeStr}).`
+      );
+    } catch (err) {
+      console.warn('Error al persistir configuración en Firestore:', err);
+      setCloudStatus('offline');
+      showToast(
+        'Guardado Localmente',
+        'Se guardó en la memoria de este navegador. La nube sincronizará al reconectar.',
+        'alert'
+      );
+    }
   };
 
   const showToast = (title: string, body: string, type: 'success' | 'alert' = 'success') => {
@@ -1261,10 +1451,10 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         company={company}
-        onSave={(updated) => {
-          setCompany(updated);
-          showToast('Configuración Guardada', 'Se actualizaron los datos y el logo corporativo.');
-        }}
+        destinatarioAccounts={destinatarioAccounts}
+        onSave={handleSaveCompanySettings}
+        onClearAllCompanyAccounts={handleClearAllCompanyAccounts}
+        onClearAllDestinatarioAccounts={handleClearAllDestinatarioAccounts}
       />
 
       {/* User Management Modal (Admin only) */}
@@ -1293,6 +1483,8 @@ export default function App() {
         nextCode={nextRendCode}
         destinatarioAccounts={destinatarioAccounts}
         onAddDestinatarioAccount={handleAddDestinatarioAccount}
+        onDeleteDestinatarioAccount={handleDeleteDestinatarioAccount}
+        onClearAllDestinatarioAccounts={handleClearAllDestinatarioAccounts}
         availableSurplus={surplusExpenses}
         preselectedSurplus={surplusForNewRendicion}
       />

@@ -8,33 +8,21 @@ export const INITIAL_COMPANY: CompanySettings = {
   toleranciaCuadre: 2.00,
   logoUrl: '',
   sistemaContableExport: 'CONCAR',
-  cuentasOrigenDisponibles: [
-    {
-      id: 'cta-1',
-      banco: 'BCP - Banco de Crédito del Perú',
-      tipoCuenta: 'Corriente Soles',
-      numeroCuenta: '191-23847291-0-12',
-      cci: '002-191-0023847291012-54',
-      titular: 'CORPORACIÓN ANDINA S.A.C.',
-    },
-    {
-      id: 'cta-2',
-      banco: 'BBVA Continental',
-      tipoCuenta: 'Corriente Soles',
-      numeroCuenta: '0011-0182-0100492819',
-      cci: '011-182-000100492819-32',
-      titular: 'CORPORACIÓN ANDINA S.A.C.',
-    },
-    {
-      id: 'cta-3',
-      banco: 'Interbank',
-      tipoCuenta: 'Corriente Soles',
-      numeroCuenta: '200-3001849201',
-      cci: '003-200-003001849201-89',
-      titular: 'CORPORACIÓN ANDINA S.A.C.',
-    },
-  ],
+  cuentasOrigenDisponibles: [],
 };
+
+// IDs de cuentas de ejemplo para purga garantizada
+export const DEMO_ACCOUNT_IDS = new Set([
+  'cta-1',
+  'cta-2',
+  'cta-3',
+  'dest-1',
+  'dest-2',
+  'dest-3',
+  'dest-4',
+  'dest-5',
+  'dest-6',
+]);
 
 export const DEFAULT_ADMIN_USER: User = {
   id: 'usr-1',
@@ -47,7 +35,7 @@ export const DEFAULT_ADMIN_USER: User = {
   department: 'Dirección y Finanzas',
   dni: '09482716',
   cargo: 'Contralor General & Administrador Principal',
-  cuentaBancaria: 'BCP Cta Ahorros 193-94829102-0-15',
+  cuentaBancaria: '',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   isDefaultAdmin: true,
 };
@@ -96,7 +84,7 @@ export const INITIAL_USERS: User[] = [
     department: 'Operaciones y Campo',
     dni: '10293847',
     cargo: 'Gerente de Operaciones',
-    cuentaBancaria: 'BBVA Cta Corriente 0011-0293-0200849201',
+    cuentaBancaria: '',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
   },
   {
@@ -110,7 +98,7 @@ export const INITIAL_USERS: User[] = [
     department: 'Operaciones y Campo',
     dni: '45892019',
     cargo: 'Supervisor Técnico de Planta y Campo',
-    cuentaBancaria: 'BCP Cta Ahorros 194-48291048-0-91',
+    cuentaBancaria: '',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
   },
   {
@@ -124,7 +112,7 @@ export const INITIAL_USERS: User[] = [
     department: 'Contabilidad y Finanzas',
     dni: '08291048',
     cargo: 'Auditora Contable y Fiscal Principal',
-    cuentaBancaria: 'Interbank Cta Ahorros 200-8492019482',
+    cuentaBancaria: '',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
   },
 ];
@@ -172,68 +160,7 @@ export const INITIAL_COST_CENTERS: CostCenter[] = [
   },
 ];
 
-export const INITIAL_DESTINATARIO_ACCOUNTS: DestinatarioAccount[] = [
-  {
-    id: 'dest-1',
-    nombreDestinatario: 'Marcos Quispe Tapia',
-    dniRuc: '45892019',
-    banco: 'BCP - Banco de Crédito del Perú',
-    tipoCuenta: 'Ahorros',
-    numeroCuenta: '194-48291048-0-91',
-    cci: '002-194-0048291048091-23',
-    alias: 'BCP Ahorros Personal',
-  },
-  {
-    id: 'dest-2',
-    nombreDestinatario: 'Marcos Quispe Tapia',
-    dniRuc: '45892019',
-    banco: 'Interbank',
-    tipoCuenta: 'Ahorros',
-    numeroCuenta: '200-5829104921',
-    cci: '003-200-005829104921-67',
-    alias: 'Interbank Ahorros Secundario',
-  },
-  {
-    id: 'dest-3',
-    nombreDestinatario: 'Lic. Javier Fernández',
-    dniRuc: '10293847',
-    banco: 'BBVA Continental',
-    tipoCuenta: 'Corriente',
-    numeroCuenta: '0011-0293-0200849201',
-    cci: '011-293-000200849201-14',
-    alias: 'BBVA Cta Operaciones',
-  },
-  {
-    id: 'dest-4',
-    nombreDestinatario: 'Ing. Roberto Mendoza',
-    dniRuc: '09482716',
-    banco: 'BCP - Banco de Crédito del Perú',
-    tipoCuenta: 'Ahorros',
-    numeroCuenta: '193-94829102-0-15',
-    cci: '002-193-0094829102015-88',
-    alias: 'BCP Ahorros Haberes',
-  },
-  {
-    id: 'dest-5',
-    nombreDestinatario: 'CPC Carmen Salinas Prado',
-    dniRuc: '08291048',
-    banco: 'Interbank',
-    tipoCuenta: 'Ahorros',
-    numeroCuenta: '200-8492019482',
-    cci: '003-200-008492019482-90',
-    alias: 'Interbank Sueldos',
-  },
-  {
-    id: 'dest-6',
-    nombreDestinatario: 'Transportes y Logística Rápida S.A.C.',
-    dniRuc: '20554891023',
-    banco: 'BCP - Banco de Crédito del Perú',
-    tipoCuenta: 'Corriente',
-    numeroCuenta: '191-38291049-0-45',
-    cci: '002-191-0038291049045-71',
-    alias: 'BCP Cta Comercial Proveedor',
-  },
-];
+export const INITIAL_DESTINATARIO_ACCOUNTS: DestinatarioAccount[] = [];
 
 export const INITIAL_RENDICIONES: Rendicion[] = [
   {
