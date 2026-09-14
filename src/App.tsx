@@ -1201,6 +1201,23 @@ export default function App() {
     showToast('Límite Actualizado', 'El nuevo límite presupuestal ha sido registrado.');
   };
 
+  const handleEditCostCenter = (id: string, updated: Partial<CostCenter>) => {
+    let updatedCostCenters: CostCenter[] = [];
+    setCostCenters((prev) => {
+      updatedCostCenters = prev.map((cc) => (cc.id === id ? { ...cc, ...updated } : cc));
+      return updatedCostCenters;
+    });
+    dispatchCloudSave({ costCenters: updatedCostCenters });
+    showToast('Centro de Costos Actualizado', 'Se actualizaron los datos del centro de costos.');
+  };
+
+  const handleDeleteCostCenter = (id: string) => {
+    const updated = costCenters.filter((cc) => cc.id !== id);
+    setCostCenters(updated);
+    dispatchCloudSave({ costCenters: updated });
+    showToast('Centro de Costos Eliminado', 'Se removió el centro de costos del sistema.');
+  };
+
   const handleAddCostCenter = (newCC: Omit<CostCenter, 'id' | 'spentAmount'>) => {
     const cc: CostCenter = {
       ...newCC,
@@ -1364,8 +1381,10 @@ export default function App() {
         {activeTab === 'centros_costos' && (
           <CostCenterLimitsView
             costCenters={costCenters}
-            onUpdateLimit={handleUpdateCostCenterLimit}
+            rendiciones={rendiciones}
             onAddCostCenter={handleAddCostCenter}
+            onEditCostCenter={handleEditCostCenter}
+            onDeleteCostCenter={handleDeleteCostCenter}
           />
         )}
 
