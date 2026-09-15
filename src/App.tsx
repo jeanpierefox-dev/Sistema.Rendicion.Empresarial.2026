@@ -254,11 +254,11 @@ export default function App() {
         },
         (error) => {
           console.warn('Estado del canal de sincronización Firestore:', error);
-          setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
+          setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
       );
     } catch (e) {
       console.warn('Error inicializando suscriptor de la nube:', e);
-      setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
+      setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -294,7 +294,7 @@ export default function App() {
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (err) {
         console.warn('No se pudo sincronizar con Firestore:', err);
-        setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
+        setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
     }, 400);
   };
 
@@ -327,6 +327,7 @@ export default function App() {
   // Persistence to localStorage (Local cache for instant offline startup)
   useEffect(() => {
     localStorage.setItem('corpgastos_users', JSON.stringify(users));
+    dispatchCloudSave({ users });
   }, [users]);
 
   useEffect(() => {
@@ -339,26 +340,32 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('corpgastos_company', JSON.stringify(company));
+    dispatchCloudSave({ company });
   }, [company]);
 
   useEffect(() => {
     localStorage.setItem('corpgastos_cost_centers', JSON.stringify(costCenters));
+    dispatchCloudSave({ costCenters });
   }, [costCenters]);
 
   useEffect(() => {
     localStorage.setItem('corpgastos_rendiciones', JSON.stringify(rendiciones));
+    dispatchCloudSave({ rendiciones });
   }, [rendiciones]);
 
   useEffect(() => {
     localStorage.setItem('corpgastos_surplus_expenses', JSON.stringify(surplusExpenses));
+    dispatchCloudSave({ surplusExpenses });
   }, [surplusExpenses]);
 
   useEffect(() => {
     localStorage.setItem('corpgastos_notifications', JSON.stringify(notifications));
+    dispatchCloudSave({ notifications });
   }, [notifications]);
 
   useEffect(() => {
     localStorage.setItem('corpgastos_destinatario_accounts', JSON.stringify(destinatarioAccounts));
+    dispatchCloudSave({ destinatarioAccounts });
   }, [destinatarioAccounts]);
 
   const handleAddDestinatarioAccount = (account: DestinatarioAccount) => {
