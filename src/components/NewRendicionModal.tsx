@@ -611,8 +611,8 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
                 >
                   <option value="">
                     {destinatarioAccounts.length === 0
-                      ? '-- No hay cuentas registradas. Ingrese los datos manualmente abajo o agregue una nueva --'
-                      : '-- Seleccione una cuenta para autocompletar datos del destinatario --'}
+                      ? '-- No hay cuentas registradas. Ingrese los datos manualmente abajo --'
+                      : '-- Ingresar datos del destinatario manualmente --'}
                   </option>
                   {destinatarioAccounts.map((acc) => (
                     <option key={acc.id} value={acc.id}>
@@ -662,35 +662,58 @@ export const NewRendicionModal: React.FC<NewRendicionModalProps> = ({
                   )}
                 </div>
 
-                {/* Cuenta y Nombre de Destinatario */}
+                {/* Info o Ingreso Manual de Destinatario */}
+                <div>
+                  {!selectedAccountId ? (
+                    <>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Nombre del Destinatario de Fondos *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nombre completo de quien recibe los fondos"
+                        value={nombreDestinatario}
+                        onChange={(e) => setNombreDestinatario(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none"
+                      />
+                    </>
+                  ) : (
+                    <div className="h-full flex flex-col justify-end">
+                      <div className="p-2.5 bg-indigo-50 border border-indigo-100 rounded-lg flex flex-col justify-center min-h-[58px]">
+                        <p className="text-[10px] text-indigo-500 font-semibold uppercase tracking-wider mb-0.5">Destinatario Seleccionado</p>
+                        <p className="text-xs font-bold text-indigo-950 truncate" title={nombreDestinatario}>{nombreDestinatario}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {!selectedAccountId ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Nombre Completo del Destinatario de Fondos *
+                    Cuenta de Destino (Banco y N° de Cuenta) *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Nombre completo de quien recibe los fondos"
-                    value={nombreDestinatario}
-                    onChange={(e) => setNombreDestinatario(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-bold text-slate-900 outline-none"
+                    placeholder="ej. BCP Ahorros 194-48291048-0-91"
+                    value={cuentaDestino}
+                    onChange={(e) => setCuentaDestino(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Cuenta de Destino (Banco y N° de Cuenta) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="ej. BCP Ahorros 194-48291048-0-91"
-                  value={cuentaDestino}
-                  onChange={(e) => setCuentaDestino(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 outline-none"
-                />
-              </div>
+              ) : (
+                <div className="px-3 py-2 bg-indigo-50/50 border border-indigo-100 rounded-lg flex items-center justify-between">
+                   <div className="flex-1 min-w-0 pr-2">
+                     <p className="text-[10px] text-indigo-500 font-semibold uppercase tracking-wider mb-0.5">Cuenta Bancaria de Destino</p>
+                     <p className="text-xs font-mono font-bold text-indigo-900 truncate" title={cuentaDestino}>{cuentaDestino}</p>
+                   </div>
+                   <div className="shrink-0 p-1.5 bg-indigo-100 rounded-md">
+                     <Landmark className="w-4 h-4 text-indigo-600" />
+                   </div>
+                </div>
+              )}
 
               {/* Método de Desembolso: STRICTLY Transferencia Bancaria OR Cheque */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
