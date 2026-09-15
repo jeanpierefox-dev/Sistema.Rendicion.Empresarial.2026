@@ -232,15 +232,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 hidden sm:inline-block" />
             </button>
 
-            {/* Company Settings - Icon only */}
-            <button
-              id="btn-open-settings"
-              onClick={onOpenSettings}
-              title="Configuración de la Empresa, Cuentas Bancarias y Logo"
-              className="p-1.5 sm:p-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shrink-0"
-            >
-              <Sliders className="w-3.5 h-3.5" />
-            </button>
+            {/* Company Settings - Icon only (Admin Only) */}
+            {isAdmin && (
+              <button
+                id="btn-open-settings"
+                onClick={onOpenSettings}
+                title="Configuración de la Empresa, Cuentas Bancarias y Logo"
+                className="p-1.5 sm:p-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shrink-0"
+              >
+                <Sliders className="w-3.5 h-3.5" />
+              </button>
+            )}
 
             {/* Notifications Bell - Icon only */}
             <div className="relative shrink-0">
