@@ -205,88 +205,114 @@ export function exportRendicionToPDF(
 
   const cuadre = calculateCuadre(rendicion.montoAsignado, rendicion.items, company.toleranciaCuadre);
 
+  // Background Watermark (Company Logo if available)
+  if (company.logoUrl) {
+    try {
+      doc.setGState(new doc.GState({ opacity: 0.08 }));
+      // Center a large watermark
+      doc.addImage(company.logoUrl, 'PNG', 55, 100, 100, 100);
+      doc.setGState(new doc.GState({ opacity: 1 }));
+    } catch (e) {
+      console.warn('Could not render watermark image');
+    }
+  }
+
   // Corporate Header Banner
   doc.setFillColor(15, 23, 42); // slate-900
-  doc.rect(0, 0, 210, 26, 'F');
+  doc.rect(0, 0, 210, 28, 'F');
+
+  // Company Logo in Header
+  let textStartX = 14;
+  if (company.logoUrl) {
+    try {
+      // Add a small white circle background for the logo
+      doc.setFillColor(255, 255, 255);
+      doc.circle(22, 14, 8, 'F');
+      doc.addImage(company.logoUrl, 'PNG', 15, 7, 14, 14);
+      textStartX = 34; // Shift text to the right
+    } catch (e) {
+      console.warn('Could not render header logo image');
+    }
+  }
 
   // Company Brand text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
+  doc.setFontSize(14); // Increased
   doc.setFont('helvetica', 'bold');
-  doc.text(company.razonSocial, 14, 11);
+  doc.text(company.razonSocial, textStartX, 13);
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5); // Increased
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(203, 213, 225); // slate-300
-  doc.text(`RUC: ${company.ruc}  |  ${company.direccion}`, 14, 17);
-  doc.text(`Telf: ${company.telefono}  |  Sistema Contable: ${company.sistemaContableExport}`, 14, 22);
+  doc.text(`RUC: ${company.ruc}  |  ${company.direccion}`, textStartX, 19);
+  doc.text(`Telf: ${company.telefono}  |  Sistema Contable: ${company.sistemaContableExport}`, textStartX, 24);
 
   // Subheader title & Code
   doc.setTextColor(30, 41, 59); // slate-800
-  doc.setFontSize(13);
+  doc.setFontSize(14); // Increased
   doc.setFont('helvetica', 'bold');
-  doc.text('PLANILLA OFICIAL DE RENDICIÓN DE GASTOS', 14, 33);
+  doc.text('PLANILLA OFICIAL DE RENDICIÓN DE GASTOS', 14, 35);
 
   // Badge of code
   doc.setFillColor(238, 242, 255);
   doc.setDrawColor(199, 210, 254);
-  doc.roundedRect(150, 27, 46, 8, 1.5, 1.5, 'FD');
-  doc.setFontSize(9);
+  doc.roundedRect(145, 29, 51, 9, 1.5, 1.5, 'FD');
+  doc.setFontSize(10); // Increased
   doc.setTextColor(67, 56, 202);
   doc.setFont('helvetica', 'bold');
-  doc.text(rendicion.codigoRendicion, 154, 32.5);
+  doc.text(rendicion.codigoRendicion, 149, 35);
 
   // Info Box 1: General Info & Responsables
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, 37, 182, 38, 2, 2, 'FD');
+  doc.roundedRect(14, 40, 182, 42, 2, 2, 'FD'); // Increased height
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5); // Increased
   doc.setTextColor(100, 116, 139); // slate-500
-  doc.text('TÍTULO / ASUNTO:', 18, 43);
-  doc.text('RESPONSABLE RENDICIÓN:', 18, 49);
-  doc.text('DESTINATARIO DE FONDOS:', 18, 55);
-  doc.text('CENTRO DE COSTOS / ÁREA:', 18, 61);
-  doc.text('REFERENCIA / GLOSA:', 18, 67);
+  doc.text('TÍTULO / ASUNTO:', 18, 46);
+  doc.text('RESPONSABLE RENDICIÓN:', 18, 53);
+  doc.text('DESTINATARIO DE FONDOS:', 18, 60);
+  doc.text('CENTRO DE COSTOS / ÁREA:', 18, 67);
+  doc.text('REFERENCIA / GLOSA:', 18, 74);
 
   doc.setTextColor(15, 23, 42); // slate-900
   doc.setFont('helvetica', 'bold');
-  doc.text(rendicion.titulo.substring(0, 48), 58, 43);
-  doc.text(rendicion.responsableRendicion || rendicion.colaboradorNombre, 58, 49);
-  doc.text(rendicion.nombreDestinatario || rendicion.colaboradorNombre, 58, 55);
+  doc.text(rendicion.titulo.substring(0, 45), 63, 46);
+  doc.text(rendicion.responsableRendicion || rendicion.colaboradorNombre, 63, 53);
+  doc.text(rendicion.nombreDestinatario || rendicion.colaboradorNombre, 63, 60);
   doc.text(
     `${costCenter ? `${costCenter.code} - ${costCenter.name}` : rendicion.centroCostosId} (${rendicion.departamento})`,
-    58,
-    61
+    63,
+    67
   );
   doc.setFont('helvetica', 'normal');
-  doc.text((rendicion.referenciaRendicion || 'Sin referencia especial').substring(0, 60), 58, 67);
+  doc.text((rendicion.referenciaRendicion || 'Sin referencia especial').substring(0, 55), 63, 74);
 
   // Right column of Info Box: Banking Details
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 116, 139);
-  doc.text('FECHA RENDICIÓN:', 125, 43);
-  doc.text('MÉTODO DESEMBOLSO:', 125, 49);
-  doc.text('N° TRANSF / CHEQUE:', 125, 55);
-  doc.text('CUENTA ORIGEN:', 125, 61);
-  doc.text('MONTO DESEMBOLSADO:', 125, 67);
+  doc.text('FECHA RENDICIÓN:', 122, 46);
+  doc.text('MÉTODO DESEMBOLSO:', 122, 53);
+  doc.text('N° TRANSF / CHEQUE:', 122, 60);
+  doc.text('CUENTA ORIGEN:', 122, 67);
+  doc.text('MONTO DESEMBOLSADO:', 122, 74);
 
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(rendicion.fechaRendicion || rendicion.fechaCreacion, 160, 43);
-  doc.text(rendicion.tipoDesembolso, 160, 49);
+  doc.text(rendicion.fechaRendicion || rendicion.fechaCreacion, 164, 46);
+  doc.text(rendicion.tipoDesembolso, 164, 53);
   doc.text(
     rendicion.tipoDesembolso === 'Cheque'
       ? (rendicion.numeroCheque || 'N/A')
       : (rendicion.numeroTransferencia || 'N/A'),
-    160,
-    55
+    164,
+    60
   );
-  doc.setFontSize(6.8);
-  doc.text((rendicion.cuentaOrigen || 'Cta. Empresa').substring(0, 26), 160, 61);
-  doc.setFontSize(8.5);
+  doc.setFontSize(8); // Increased
+  doc.text((rendicion.cuentaOrigen || 'Cta. Empresa').substring(0, 24), 164, 67);
+  doc.setFontSize(9.5); // Increased
   doc.setTextColor(16, 185, 129); // green
-  doc.text(formatCurrency(rendicion.montoAsignado), 160, 67);
+  doc.text(formatCurrency(rendicion.montoAsignado), 164, 74);
 
   // Table of Expenses (No subtotal, No IGV - Just Monto Total)
   const tableData = rendicion.items.map((it) => [
@@ -302,7 +328,7 @@ export function exportRendicionToPDF(
   ]);
 
   autoTable(doc, {
-    startY: 79,
+    startY: 87, // Shifted down
     head: [[
       'N°',
       'Fecha',
@@ -319,37 +345,37 @@ export function exportRendicionToPDF(
     headStyles: {
       fillColor: [30, 41, 59],
       textColor: [255, 255, 255],
-      fontSize: 7,
+      fontSize: 8, // Increased
       fontStyle: 'bold',
       halign: 'center',
     },
     bodyStyles: {
-      fontSize: 6.8,
+      fontSize: 7.5, // Increased
       textColor: [51, 65, 85],
     },
     columnStyles: {
       0: { cellWidth: 7, halign: 'center' },
-      1: { cellWidth: 16, halign: 'center' },
-      2: { cellWidth: 24 },
-      3: { cellWidth: 20 },
-      4: { cellWidth: 18, halign: 'center' },
-      5: { cellWidth: 34 },
-      6: { cellWidth: 32 },
-      7: { cellWidth: 21 },
-      8: { cellWidth: 16, halign: 'right', fontStyle: 'bold' },
+      1: { cellWidth: 17, halign: 'center' },
+      2: { cellWidth: 23 },
+      3: { cellWidth: 19 },
+      4: { cellWidth: 19, halign: 'center' },
+      5: { cellWidth: 32 },
+      6: { cellWidth: 31 },
+      7: { cellWidth: 19 },
+      8: { cellWidth: 17, halign: 'right', fontStyle: 'bold' },
     },
     margin: { left: 14, right: 14 },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 5;
+  const finalY = (doc as any).lastAutoTable.finalY + 7;
 
   // Cuadre Box
   const isCuadrado = cuadre.esCuadrado;
   doc.setFillColor(isCuadrado ? 240 : 254, isCuadrado ? 253 : 242, isCuadrado ? 244 : 242);
   doc.setDrawColor(isCuadrado ? 187 : 254, isCuadrado ? 247 : 202, isCuadrado ? 208 : 202);
-  doc.roundedRect(14, finalY, 182, 22, 2, 2, 'FD');
+  doc.roundedRect(14, finalY, 182, 24, 2, 2, 'FD'); // Increased height
 
-  doc.setFontSize(8);
+  doc.setFontSize(9); // Increased
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(isCuadrado ? 21 : 185, isCuadrado ? 128 : 28, isCuadrado ? 61 : 28);
   doc.text(
@@ -357,76 +383,78 @@ export function exportRendicionToPDF(
       ? '✓ ESTADO DE CUADRE: CONFORME (Sobrante dentro de la tolerancia máxima de S/ 2.00)'
       : '⚠ ESTADO DE CUADRE: OBSERVADO / DESCUADRADO',
     18,
-    finalY + 5.5
+    finalY + 6.5
   );
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5); // Increased
   doc.setTextColor(71, 85, 105);
-  doc.text(`Monto Asignado: ${formatCurrency(rendicion.montoAsignado)}`, 18, finalY + 11);
-  doc.text(`Total Gastos Rendidos: ${formatCurrency(cuadre.totalRendido)}`, 18, finalY + 16);
+  doc.text(`Monto Asignado: ${formatCurrency(rendicion.montoAsignado)}`, 18, finalY + 13);
+  doc.text(`Total Gastos Rendidos: ${formatCurrency(cuadre.totalRendido)}`, 18, finalY + 19);
+
   doc.setFont('helvetica', 'bold');
-  doc.text(`Sobrante / Restante: ${formatCurrency(cuadre.saldoRestante)}`, 85, finalY + 11);
+  doc.text(`Sobrante / Restante: ${formatCurrency(cuadre.saldoRestante)}`, 85, finalY + 13);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Tolerancia Máx: S/ ${company.toleranciaCuadre.toFixed(2)}`, 85, finalY + 16);
-  doc.text(`Diagnóstico: ${cuadre.mensaje.substring(0, 52)}`, 130, finalY + 11);
-  doc.text(`Cta Destino: ${(rendicion.cuentaDestino || 'N/A').substring(0, 24)}`, 130, finalY + 16);
+  doc.text(`Tolerancia Máx: S/ ${company.toleranciaCuadre.toFixed(2)}`, 85, finalY + 19);
+
+  doc.text(`Diagnóstico: ${cuadre.mensaje.substring(0, 48)}`, 130, finalY + 13);
+  doc.text(`Cta Destino: ${(rendicion.cuentaDestino || 'N/A').substring(0, 22)}`, 130, finalY + 19);
 
   // Digital Signatures Section with canvas image rendering
-  const sigY = finalY + 28;
-  if (sigY < 255) {
+  const sigY = finalY + 30; // Shifted down
+  if (sigY < 250) {
     // Signature box 1: Responsable
     doc.setDrawColor(203, 213, 225);
-    doc.roundedRect(20, sigY, 52, 28, 1, 1, 'S');
+    doc.roundedRect(20, sigY, 52, 30, 1, 1, 'S'); // Increased height
     if (rendicion.firmaResponsable) {
       try {
-        doc.addImage(rendicion.firmaResponsable, 'PNG', 24, sigY + 2, 44, 16);
+        doc.addImage(rendicion.firmaResponsable, 'PNG', 24, sigY + 2, 44, 18); // Increased height
       } catch (e) {
-        doc.setFontSize(7);
-        doc.text('[Firma Digital Registrada]', 24, sigY + 10);
+        doc.setFontSize(8); // Increased
+        doc.text('[Firma Digital Registrada]', 24, sigY + 12);
       }
     }
-    doc.line(24, sigY + 20, 68, sigY + 20);
-    doc.setFontSize(7);
+    doc.line(24, sigY + 22, 68, sigY + 22);
+    doc.setFontSize(8); // Increased
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
-    doc.text('RESPONSABLE RENDICIÓN', 23, sigY + 23);
-    doc.setFontSize(6);
+    doc.text('RESPONSABLE RENDICIÓN', 22.5, sigY + 26);
+    doc.setFontSize(7); // Increased
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
-    doc.text((rendicion.responsableRendicion || rendicion.colaboradorNombre).substring(0, 25), 23, sigY + 26);
+    doc.text((rendicion.responsableRendicion || rendicion.colaboradorNombre).substring(0, 25), 22.5, sigY + 29);
 
     // Signature box 2: Aprobador (Admin / Gerente)
-    doc.roundedRect(80, sigY, 52, 28, 1, 1, 'S');
+    doc.roundedRect(80, sigY, 52, 30, 1, 1, 'S'); // Increased height
     if (rendicion.firmaAprobador) {
       try {
-        doc.addImage(rendicion.firmaAprobador, 'PNG', 84, sigY + 2, 44, 16);
+        doc.addImage(rendicion.firmaAprobador, 'PNG', 84, sigY + 2, 44, 18); // Increased height
       } catch (e) {
-        doc.setFontSize(7);
-        doc.text('[Firma Digital Aprobada]', 84, sigY + 10);
+        doc.setFontSize(8); // Increased
+        doc.text('[Firma Digital Aprobada]', 84, sigY + 12);
       }
     }
-    doc.line(84, sigY + 20, 128, sigY + 20);
-    doc.setFontSize(7);
+    doc.line(84, sigY + 22, 128, sigY + 22);
+    doc.setFontSize(8); // Increased
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
-    doc.text('GERENCIA / ADMINISTRACIÓN', 82, sigY + 23);
-    doc.setFontSize(6);
+    doc.text('GERENCIA / ADMINISTRACIÓN', 81, sigY + 26);
+    doc.setFontSize(7); // Increased
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
-    doc.text((rendicion.aprobadoPor || 'Pendiente de Aprobación').substring(0, 25), 82, sigY + 26);
+    doc.text((rendicion.aprobadoPor || 'Pendiente de Aprobación').substring(0, 25), 81, sigY + 29);
 
     // Signature box 3: Contabilidad
-    doc.roundedRect(140, sigY, 52, 28, 1, 1, 'S');
-    doc.line(144, sigY + 20, 188, sigY + 20);
-    doc.setFontSize(7);
+    doc.roundedRect(140, sigY, 52, 30, 1, 1, 'S'); // Increased height
+    doc.line(144, sigY + 22, 188, sigY + 22);
+    doc.setFontSize(8); // Increased
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
-    doc.text('AUDITORÍA CONTABLE / TESORERÍA', 142, sigY + 23);
-    doc.setFontSize(6);
+    doc.text('AUDITORÍA CONTABLE', 145.5, sigY + 26);
+    doc.setFontSize(7); // Increased
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
-    doc.text('Revisión Fiscal y Liquidación SUNAT', 142, sigY + 26);
+    doc.text('Revisión Fiscal y Liquidación SUNAT', 141.5, sigY + 29);
   }
 
   doc.save(`Planilla_Rendicion_${rendicion.codigoRendicion}.pdf`);
