@@ -248,20 +248,17 @@ export default function App() {
                 })
                 .catch((err) => {
                   console.warn('Advertencia al sembrar datos iniciales en Firestore:', err);
-                  setCloudStatus('offline');
-                });
+                  setCloudStatus('error'); showToast('Error', err?.message || 'Error', 'alert'); });
             }
           }
         },
         (error) => {
           console.warn('Estado del canal de sincronización Firestore:', error);
-          setCloudStatus('offline');
-        }
+          setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
       );
     } catch (e) {
       console.warn('Error inicializando suscriptor de la nube:', e);
-      setCloudStatus('offline');
-    }
+      setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -297,8 +294,7 @@ export default function App() {
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (err) {
         console.warn('No se pudo sincronizar con Firestore:', err);
-        setCloudStatus('offline');
-      }
+        setCloudStatus('error'); showToast('Error', 'Sincronizacion rechazada, revise conexión.', 'alert'); }
     }, 400);
   };
 
@@ -324,7 +320,7 @@ export default function App() {
       );
     } catch (err) {
       setCloudStatus('error');
-      showToast('Error de Conexión', 'No se pudo conectar con Firestore en este momento.', 'alert');
+      showToast('Error de Conexión', `Detalle: ${(err as Error).message}`, 'alert');
     }
   };
 
@@ -496,7 +492,8 @@ export default function App() {
       );
     } catch (err) {
       console.warn('Error al persistir configuración en Firestore:', err);
-      setCloudStatus('offline');
+      setCloudStatus('error');
+          
       showToast(
         'Guardado Localmente',
         'Se guardó en la memoria de este navegador. La nube sincronizará al reconectar.',
