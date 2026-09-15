@@ -237,11 +237,11 @@ export function exportRendicionToPDF(
 
   // Company Brand text
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text(company.razonSocial, textStartX, 11);
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(6.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(203, 213, 225); // slate-300
   doc.text(`RUC: ${company.ruc}  |  ${company.direccion}`, textStartX, 17);
@@ -249,7 +249,7 @@ export function exportRendicionToPDF(
 
   // Subheader title & Code
   doc.setTextColor(30, 41, 59); // slate-800
-  doc.setFontSize(13);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('PLANILLA OFICIAL DE RENDICIÓN DE GASTOS', 14, 33);
 
@@ -257,7 +257,7 @@ export function exportRendicionToPDF(
   doc.setFillColor(238, 242, 255);
   doc.setDrawColor(199, 210, 254);
   doc.roundedRect(150, 27, 46, 8, 1.5, 1.5, 'FD');
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setTextColor(67, 56, 202);
   doc.setFont('helvetica', 'bold');
   doc.text(rendicion.codigoRendicion, 154, 32.5);
@@ -265,9 +265,9 @@ export function exportRendicionToPDF(
   // Info Box 1: General Info & Responsables
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, 37, 182, 38, 2, 2, 'FD');
+  doc.roundedRect(14, 37, 182, 36, 2, 2, 'FD');
 
-  doc.setFontSize(7.5);
+  doc.setFontSize(6.5);
   doc.setTextColor(100, 116, 139); // slate-500
   doc.text('TÍTULO / ASUNTO:', 18, 43);
   doc.text('RESPONSABLE RENDICIÓN:', 18, 49);
@@ -308,9 +308,9 @@ export function exportRendicionToPDF(
     160,
     55
   );
-  doc.setFontSize(6.8);
+  doc.setFontSize(6);
   doc.text((rendicion.cuentaOrigen || 'Cta. Empresa').substring(0, 26), 160, 61);
-  doc.setFontSize(8.5);
+  doc.setFontSize(7.5);
   doc.setTextColor(16, 185, 129); // green
   doc.text(formatCurrency(rendicion.montoAsignado), 160, 67);
 
@@ -328,7 +328,7 @@ export function exportRendicionToPDF(
   ]);
 
   autoTable(doc, {
-    startY: 79,
+    startY: 77,
     head: [[
       'N°',
       'Fecha',
@@ -345,12 +345,12 @@ export function exportRendicionToPDF(
     headStyles: {
       fillColor: [30, 41, 59],
       textColor: [255, 255, 255],
-      fontSize: 7,
+      fontSize: 6.5,
       fontStyle: 'bold',
       halign: 'center',
     },
     bodyStyles: {
-      fontSize: 6.8,
+      fontSize: 5.8,
       textColor: [51, 65, 85],
     },
     columnStyles: {
@@ -375,19 +375,19 @@ export function exportRendicionToPDF(
   doc.setDrawColor(isCuadrado ? 187 : 254, isCuadrado ? 247 : 202, isCuadrado ? 208 : 202);
   doc.roundedRect(14, finalY, 182, 22, 2, 2, 'FD');
 
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(isCuadrado ? 21 : 185, isCuadrado ? 128 : 28, isCuadrado ? 61 : 28);
   doc.text(
     isCuadrado
-      ? '✓ ESTADO DE CUADRE: CONFORME (Sobrante dentro de la tolerancia máxima de S/ 2.00)'
+      ? '✓ ESTADO DE CUADRE: CONFORME'
       : '⚠ ESTADO DE CUADRE: OBSERVADO / DESCUADRADO',
     18,
     finalY + 5.5
   );
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(6.5);
   doc.setTextColor(71, 85, 105);
   doc.text(`Monto Asignado: ${formatCurrency(rendicion.montoAsignado)}`, 18, finalY + 11);
   doc.text(`Total Gastos Rendidos: ${formatCurrency(cuadre.totalRendido)}`, 18, finalY + 16);
@@ -410,16 +410,16 @@ export function exportRendicionToPDF(
       try {
         doc.addImage(rendicion.firmaResponsable, 'PNG', 24, sigY + 2, 44, 16);
       } catch (e) {
-        doc.setFontSize(7);
+        doc.setFontSize(6);
         doc.text('[Firma Digital Registrada]', 24, sigY + 10);
       }
     }
     doc.line(24, sigY + 20, 68, sigY + 20);
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
     doc.text('RESPONSABLE RENDICIÓN', 23, sigY + 23);
-    doc.setFontSize(6);
+    doc.setFontSize(5.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
     doc.text((rendicion.responsableRendicion || rendicion.colaboradorNombre).substring(0, 25), 23, sigY + 26);
@@ -430,16 +430,16 @@ export function exportRendicionToPDF(
       try {
         doc.addImage(rendicion.firmaAprobador, 'PNG', 84, sigY + 2, 44, 16);
       } catch (e) {
-        doc.setFontSize(7);
+        doc.setFontSize(6);
         doc.text('[Firma Digital Aprobada]', 84, sigY + 10);
       }
     }
     doc.line(84, sigY + 20, 128, sigY + 20);
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
     doc.text('GERENCIA / ADMINISTRACIÓN', 82, sigY + 23);
-    doc.setFontSize(6);
+    doc.setFontSize(5.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
     doc.text((rendicion.aprobadoPor || 'Pendiente de Aprobación').substring(0, 25), 82, sigY + 26);
@@ -447,11 +447,11 @@ export function exportRendicionToPDF(
     // Signature box 3: Contabilidad
     doc.roundedRect(140, sigY, 52, 28, 1, 1, 'S');
     doc.line(144, sigY + 20, 188, sigY + 20);
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(30, 41, 59);
     doc.text('AUDITORÍA CONTABLE / TESORERÍA', 142, sigY + 23);
-    doc.setFontSize(6);
+    doc.setFontSize(5.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 116, 139);
     doc.text('Revisión Fiscal y Liquidación SUNAT', 142, sigY + 26);
