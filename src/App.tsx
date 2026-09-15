@@ -266,10 +266,19 @@ export default function App() {
     };
   }, []);
 
-  // Function to dispatch updates to Firestore safely without race conditions
-  const dispatchCloudSave = (partial?: Partial<CloudStatePayload>) => {
+  // Referencia para acumular las actualizaciones parciales antes de enviarlas a Firestore
+  const pendingCloudUpdates = useRef<Partial<CloudStatePayload>>({});
+
+  // Function to dispatch updates to Firestore safely without race conditions and stale closures
+  const dispatchCloudSave = (partial: Partial<CloudStatePayload> = {}) => {
     if (isSyncingFromCloud.current) return;
     setCloudStatus('syncing');
+
+    // Acumular los cambios que se van a guardar
+    pendingCloudUpdates.current = {
+      ...pendingCloudUpdates.current,
+      ...partial,
+    };
 
     if (cloudSaveTimer.current) {
       clearTimeout(cloudSaveTimer.current);
@@ -277,16 +286,11 @@ export default function App() {
 
     cloudSaveTimer.current = setTimeout(async () => {
       try {
-        await saveToCloud({
-          company,
-          users,
-          costCenters,
-          rendiciones,
-          surplusExpenses,
-          destinatarioAccounts,
-          notifications,
-          ...partial,
-        });
+        const payloadToSave = { ...pendingCloudUpdates.current };
+        // Limpiamos la cola de actualizaciones
+        pendingCloudUpdates.current = {};
+        
+        await saveToCloud(payloadToSave);
         setCloudStatus('synced');
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (err) {
@@ -576,6 +580,27 @@ export default function App() {
   };
 
   // Rendiciones Handlers
+  const handleRestoreInitialRendiciones = () => {
+    // Tomamos las rendiciones actuales y verificamos si existen la 1 y 2
+    let updatedRendiciones = [...rendiciones];
+    const hasRend1 = rendiciones.some(r => r.codigoRendicion === INITIAL_RENDICIONES[3].codigoRendicion);
+    const hasRend2 = rendiciones.some(r => r.codigoRendicion === INITIAL_RENDICIONES[2].codigoRendicion);
+    const hasRend3 = rendiciones.some(r => r.codigoRendicion === INITIAL_RENDICIONES[1].codigoRendicion);
+    const hasRend4 = rendiciones.some(r => r.codigoRendicion === INITIAL_RENDICIONES[0].codigoRendicion);
+
+    if (!hasRend1) updatedRendiciones.push(INITIAL_RENDICIONES[3]);
+    if (!hasRend2) updatedRendiciones.push(INITIAL_RENDICIONES[2]);
+    if (!hasRend3) updatedRendiciones.push(INITIAL_RENDICIONES[1]);
+    if (!hasRend4) updatedRendiciones.push(INITIAL_RENDICIONES[0]);
+
+    // Sort by codigoRendicion descending (REND-004, REND-003, REND-002, REND-001)
+    updatedRendiciones.sort((a, b) => b.codigoRendicion.localeCompare(a.codigoRendicion));
+    
+    setRendiciones(updatedRendiciones);
+    dispatchCloudSave({ rendiciones: updatedRendiciones });
+    showToast('Datos Recuperados', 'Se han restaurado y sincronizado las rendiciones eliminadas.');
+  };
+
   const handleCreateRendicion = (
     data: Omit<Rendicion, 'id' | 'items' | 'historialAprobacion'>,
     initialItems?: ExpenseItem[]
@@ -1153,6 +1178,21 @@ export default function App() {
     showToast('Firma Registrada', 'La firma digital fue estampada y guardada correctamente.');
   };
 
+  const handleUpdateRendicionDetails = (rendicionId: string, updates: Partial<Rendicion>) => {
+    let updatedRendiciones: Rendicion[] = [];
+    setRendiciones((prev) => {
+      updatedRendiciones = prev.map((rend) => {
+        if (rend.id === rendicionId) {
+          return { ...rend, ...updates };
+        }
+        return rend;
+      });
+      return updatedRendiciones;
+    });
+    dispatchCloudSave({ rendiciones: updatedRendiciones });
+    showToast('Rendición Actualizada', 'Los datos de la rendición han sido guardados.');
+  };
+
   const handleUpdateMontoAsignado = (rendicionId: string, newMonto: number) => {
     let updatedRendiciones: Rendicion[] = [];
     setRendiciones((prev) => {
@@ -1361,6 +1401,7 @@ export default function App() {
             }}
             onDeleteSurplusItem={handleDeleteSurplusItem}
             onEditSurplusItem={handleEditSurplusItem}
+            onRestoreInitialRendiciones={handleRestoreInitialRendiciones}
           />
         )}
 
@@ -1527,6 +1568,7 @@ export default function App() {
           onObserveRendicion={handleObserveRendicion}
           onLiquidateRendicion={handleLiquidateRendicion}
           onUpdateSignatures={handleUpdateSignatures}
+          onUpdateRendicionDetails={handleUpdateRendicionDetails}
           onUpdateMontoAsignado={handleUpdateMontoAsignado}
           onUpdateItems={handleUpdateItems}
           onCuadreWithSurplus={handleCuadreWithSurplus}

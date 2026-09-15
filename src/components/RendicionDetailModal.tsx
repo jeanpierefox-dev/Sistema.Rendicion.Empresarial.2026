@@ -77,6 +77,7 @@ interface RendicionDetailModalProps {
       fechaFirmaAprobador?: string;
     }
   ) => void;
+  onUpdateRendicionDetails?: (rendicionId: string, updates: Partial<Rendicion>) => void;
   onUpdateMontoAsignado?: (rendicionId: string, newMonto: number) => void;
   onUpdateItems?: (rendicionId: string, updatedItems: ExpenseItem[]) => void;
   onCuadreWithSurplus?: (
@@ -107,6 +108,7 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   onObserveRendicion,
   onLiquidateRendicion,
   onUpdateSignatures,
+  onUpdateRendicionDetails,
   onUpdateMontoAsignado,
   onUpdateItems,
   onCuadreWithSurplus,
@@ -138,6 +140,10 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   const [isEditingMonto, setIsEditingMonto] = useState(false);
   const [editMontoInput, setEditMontoInput] = useState('');
 
+  // Editing Rendicion details state
+  const [isEditingDetails, setIsEditingDetails] = useState(false);
+  const [editDetailsForm, setEditDetailsForm] = useState<Partial<Rendicion>>({});
+
   if (!isOpen) return null;
 
   const cuadre = calculateCuadre(rendicion.montoAsignado, rendicion.items, company.toleranciaCuadre);
@@ -150,11 +156,14 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
   const canLiquidate =
     currentUser?.role === 'admin' || currentUser?.role === 'contador';
 
-  const canEdit =
+  const isTerminated = rendicion.estado === 'aprobada' || rendicion.estado === 'liquidada';
+  const canEdit = !isTerminated && (
     rendicion.estado === 'borrador' ||
     rendicion.estado === 'observada' ||
+    rendicion.estado === 'pendiente_aprobacion' ||
     currentUser?.role === 'admin' ||
-    currentUser?.role === 'contador';
+    currentUser?.role === 'contador'
+  );
 
   const handleSortItemsByDate = () => {
     if (!rendicion.items || rendicion.items.length === 0) return;
@@ -263,6 +272,12 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
     setSigningRole(null);
   };
 
+  const handleSaveDetails = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateRendicionDetails?.(rendicion.id, editDetailsForm);
+    setIsEditingDetails(false);
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
@@ -347,6 +362,35 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
 
           {/* Modal Scrollable Body */}
           <div className="p-3 sm:p-5 overflow-y-auto space-y-4 flex-1">
+            {/* Metadata Section Header */}
+            <div className="flex justify-between items-center px-1">
+              <h3 className="text-sm font-bold text-slate-800">Datos Generales</h3>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditDetailsForm({
+                      responsableRendicion: rendicion.responsableRendicion || rendicion.colaboradorNombre,
+                      nombreDestinatario: rendicion.nombreDestinatario || rendicion.colaboradorNombre,
+                      fechaRendicion: rendicion.fechaRendicion || rendicion.fechaCreacion,
+                      cuentaOrigen: rendicion.cuentaOrigen,
+                      banco: rendicion.banco,
+                      cuentaDestino: rendicion.cuentaDestino,
+                      tipoDesembolso: rendicion.tipoDesembolso,
+                      numeroTransferencia: rendicion.numeroTransferencia,
+                      numeroCheque: rendicion.numeroCheque,
+                      referenciaRendicion: rendicion.referenciaRendicion,
+                    });
+                    setIsEditingDetails(true);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 text-xs font-bold flex items-center space-x-1 cursor-pointer transition-colors"
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  <span>Editar Datos</span>
+                </button>
+              )}
+            </div>
+            
             {/* Metadata Cards Grid - Updated with Accounts, Destinatario, Responsable, Referencia */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               {/* Box 1: Responsable, Destinatario y Fecha */}
@@ -1165,10 +1209,13 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
                 <button
                   type="button"
                   onClick={handleActionSubmit}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded text-white cursor-pointer ${
-                    showApprovalDialog === 'observar'
-                      ? 'bg-rose-600 hover:bg-rose-700'
-                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  disabled={showApprovalDialog === 'aprobar' && !tempApprovalFirma && !rendicion.firmaAprobador}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded text-white ${
+                    showApprovalDialog === 'aprobar' && !tempApprovalFirma && !rendicion.firmaAprobador
+                      ? 'bg-slate-400 cursor-not-allowed'
+                      : showApprovalDialog === 'observar'
+                      ? 'bg-rose-600 hover:bg-rose-700 cursor-pointer'
+                      : 'bg-indigo-600 hover:bg-indigo-700 cursor-pointer'
                   }`}
                 >
                   Confirmar Acción
@@ -1323,6 +1370,151 @@ export const RendicionDetailModal: React.FC<RendicionDetailModalProps> = ({
             }
           }}
         />
+      )}
+
+      {/* Edit General Details Modal */}
+      {isEditingDetails && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+          <form onSubmit={handleSaveDetails} className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                <PenTool className="w-5 h-5 text-indigo-600" />
+                <span>Editar Datos Generales</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsEditingDetails(false)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Responsable de Rendición</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDetailsForm.responsableRendicion || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, responsableRendicion: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Destinatario del Desembolso</label>
+                  <input
+                    type="text"
+                    required
+                    value={editDetailsForm.nombreDestinatario || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, nombreDestinatario: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Fecha de Rendición</label>
+                  <input
+                    type="date"
+                    required
+                    value={editDetailsForm.fechaRendicion || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, fechaRendicion: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Referencia</label>
+                  <input
+                    type="text"
+                    value={editDetailsForm.referenciaRendicion || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, referenciaRendicion: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                </div>
+                <div className="col-span-1 sm:col-span-2 pt-2 pb-1 border-b border-slate-100">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Datos Financieros</h4>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Cuenta de Origen</label>
+                  <input
+                    type="text"
+                    value={editDetailsForm.cuentaOrigen || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, cuentaOrigen: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    placeholder="Ej. BCP 191-1234..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Banco</label>
+                  <input
+                    type="text"
+                    value={editDetailsForm.banco || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, banco: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    placeholder="Ej. BCP, BBVA..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Cuenta de Destino</label>
+                  <input
+                    type="text"
+                    value={editDetailsForm.cuentaDestino || ''}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, cuentaDestino: e.target.value})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-700">Tipo de Desembolso</label>
+                  <select
+                    value={editDetailsForm.tipoDesembolso || 'Transferencia Bancaria'}
+                    onChange={e => setEditDetailsForm({...editDetailsForm, tipoDesembolso: e.target.value as 'Transferencia Bancaria' | 'Cheque'})}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                  >
+                    <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+                {editDetailsForm.tipoDesembolso === 'Cheque' ? (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">N° de Cheque</label>
+                    <input
+                      type="text"
+                      value={editDetailsForm.numeroCheque || ''}
+                      onChange={e => setEditDetailsForm({...editDetailsForm, numeroCheque: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700">N° de Transferencia / Op.</label>
+                    <input
+                      type="text"
+                      value={editDetailsForm.numeroTransferencia || ''}
+                      onChange={e => setEditDetailsForm({...editDetailsForm, numeroTransferencia: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex justify-end space-x-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditingDetails(false)}
+                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg shadow-sm"
+              >
+                Guardar Cambios
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </>
   );
