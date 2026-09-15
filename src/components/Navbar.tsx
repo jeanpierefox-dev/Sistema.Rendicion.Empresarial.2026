@@ -18,6 +18,7 @@ import {
   Layers,
   Cloud,
   RefreshCw,
+  User as UserIcon,
 } from 'lucide-react';
 import { User, CompanySettings, AppNotification } from '../types';
 
@@ -27,6 +28,7 @@ interface NavbarProps {
   activeTab: 'rendiciones' | 'aprobaciones' | 'centros_costos' | 'analitica';
   setActiveTab: (tab: 'rendiciones' | 'aprobaciones' | 'centros_costos' | 'analitica') => void;
   onOpenSettings: () => void;
+  onOpenUserProfile: () => void;
   onOpenLogin: () => void;
   onOpenUserManagement: () => void;
   onOpenRestoreSystem: () => void;
@@ -48,6 +50,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
   onOpenSettings,
+  onOpenUserProfile,
   onOpenUserManagement,
   onOpenRestoreSystem,
   onLogout,
@@ -354,6 +357,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </span>
                     </div>
 
+                    <div className="p-2 border-b border-slate-100 bg-slate-50 space-y-1">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          onOpenUserProfile();
+                        }}
+                        className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-200 flex items-center space-x-2 cursor-pointer transition-colors"
+                      >
+                        <UserIcon className="w-4 h-4 text-slate-500" />
+                        <span>Mi Perfil y Cuenta Bancaria</span>
+                      </button>
+                    </div>
+
                     {isAdmin && (
                       <div className="p-2 border-b border-slate-100 bg-indigo-50/50 space-y-1">
                         <button
@@ -380,11 +396,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       </div>
                     )}
 
-                    <div className="p-2 border-b border-slate-100">
-                      <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        Cambiar Usuario / Rol Jerárquico:
-                      </p>
-                      {allUsers.map((u) => (
+                    {isAdmin && (
+                      <div className="p-2 border-b border-slate-100">
+                        <p className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Cambiar Usuario / Rol Jerárquico:
+                        </p>
+                        {allUsers.map((u) => (
                         <button
                           key={u.id}
                           onClick={() => {
@@ -407,6 +424,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </button>
                       ))}
                     </div>
+                    )}
 
                     <div className="p-2">
                       <button

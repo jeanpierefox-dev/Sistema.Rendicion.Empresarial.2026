@@ -208,10 +208,10 @@ export function exportRendicionToPDF(
   // Background Watermark (Company Logo if available)
   if (company.logoUrl) {
     try {
-      doc.setGState(new doc.GState({ opacity: 0.08 }));
+      doc.setGState(new (doc as any).GState({ opacity: 0.08 }));
       // Center a large watermark
       doc.addImage(company.logoUrl, 'PNG', 55, 100, 100, 100);
-      doc.setGState(new doc.GState({ opacity: 1 }));
+      doc.setGState(new (doc as any).GState({ opacity: 1 }));
     } catch (e) {
       console.warn('Could not render watermark image');
     }

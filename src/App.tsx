@@ -27,6 +27,7 @@ import { Navbar } from './components/Navbar';
 import { LoginModal } from './components/LoginModal';
 import { CompanySettingsModal } from './components/CompanySettingsModal';
 import { UserManagementModal } from './components/UserManagementModal';
+import { UserProfileModal } from './components/UserProfileModal';
 import { RendicionesListView } from './components/RendicionesListView';
 import { RendicionDetailModal } from './components/RendicionDetailModal';
 import { OcrUploadModal } from './components/OcrUploadModal';
@@ -134,6 +135,7 @@ export default function App() {
   const [selectedRendicionId, setSelectedRendicionId] = useState<string | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [isMobileMode, setIsMobileMode] = useState(false);
@@ -1362,6 +1364,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenUserProfile={() => setIsUserProfileOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenRestoreSystem={() => setIsRestoreModalOpen(true)}
         onOpenLogin={() => setIsLoginModalOpen(true)}
@@ -1526,6 +1529,13 @@ export default function App() {
         onUpdateUser={handleUpdateUser}
         onAddUser={handleAddUser}
         onDeleteUser={handleDeleteUser}
+      />
+
+      <UserProfileModal
+        isOpen={isUserProfileOpen}
+        onClose={() => setIsUserProfileOpen(false)}
+        currentUser={currentUser}
+        onUpdateUser={handleUpdateUser}
       />
 
       {/* New Rendición Modal */}
