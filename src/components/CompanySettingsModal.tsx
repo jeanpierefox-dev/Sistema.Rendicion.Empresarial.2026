@@ -17,6 +17,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { CompanySettings, BankAccount, DestinatarioAccount } from '../types';
+import { compressImage } from '../lib/imageUtils';
+
 
 interface CompanySettingsModalProps {
   isOpen: boolean;

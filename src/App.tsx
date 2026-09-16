@@ -274,11 +274,11 @@ export default function App() {
         },
         (error) => {
           console.warn('Estado del canal de sincronización Firestore:', error);
-          setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
+          setCloudStatus('error'); showToast('Error', error?.message || 'Error de sincronización', 'alert'); }
       );
     } catch (e) {
       console.warn('Error inicializando suscriptor de la nube:', e);
-      setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
+      setCloudStatus('error'); showToast('Error', (e as Error)?.message || 'Error de sincronización', 'alert'); }
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -314,7 +314,7 @@ export default function App() {
         setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (err) {
         console.warn('No se pudo sincronizar con Firestore:', err);
-        setCloudStatus('error'); showToast('Error', err?.message || 'Error de sincronización', 'alert'); }
+        setCloudStatus('error'); showToast('Error', (err as Error)?.message || 'Error de sincronización', 'alert'); }
     }, 400);
   };
 

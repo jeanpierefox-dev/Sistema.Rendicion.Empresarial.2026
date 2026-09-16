@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { isDefaultAdminUser } from '../initialData';
+import { compressImage } from '../lib/imageUtils';
+
 
 interface UserManagementModalProps {
   isOpen: boolean;

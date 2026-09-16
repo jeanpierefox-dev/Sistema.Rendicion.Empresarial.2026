@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { ExpenseItem, TipoDocumento, ClasificacionGasto, CostCenter } from '../types';
 import { formatCurrency } from '../utils/financial';
+import { compressImage } from '../lib/imageUtils';
+
 
 interface OcrUploadModalProps {
   isOpen: boolean;
