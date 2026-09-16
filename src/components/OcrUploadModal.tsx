@@ -55,15 +55,15 @@ export const OcrUploadModal: React.FC<OcrUploadModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileChange = (file: File) => {
+  const handleFileChange = async (file: File) => {
     setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      setPreviewUrl(base64);
-      triggerOcrProcessing(base64, file.type);
-    };
-    reader.readAsDataURL(file);
+    try {
+       const base64 = await compressImage(file, 1200, 1200, 0.85);
+       setPreviewUrl(base64);
+       triggerOcrProcessing(base64, file.type);
+    } catch(err) {
+       console.error(err);
+    }
   };
 
   const triggerOcrProcessing = async (base64Image: string, mimeType: string) => {

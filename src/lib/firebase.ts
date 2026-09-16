@@ -131,13 +131,10 @@ export async function saveToCloud(partialState: CloudStatePayload, forceEmptyRen
     // Otherwise, we might delete them before they get migrated!
     const docData: any = {
       ...coreState,
+      rendiciones: deleteField(),
       lastUpdated: new Date().toISOString(),
     };
     
-    if (rendiciones) {
-       docData.rendiciones = deleteField();
-    }
-
     if (Object.keys(coreState).length > 0 || rendiciones) {
       await setDoc(
         docRef,

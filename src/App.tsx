@@ -44,7 +44,14 @@ export default function App() {
     const saved = localStorage.getItem('corpgastos_users');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: User[] = JSON.parse(saved);
+        parsed.forEach(u => {
+           if (u.avatar && u.avatar.length > 300000) {
+              u.avatar = '';
+           }
+        });
+        localStorage.setItem('corpgastos_users', JSON.stringify(parsed)); return parsed;
+        
       } catch (e) {}
     }
     return INITIAL_USERS;
@@ -68,6 +75,12 @@ export default function App() {
     if (saved) {
       try {
         const parsed: CompanySettings = JSON.parse(saved);
+        if (parsed.logoUrl && parsed.logoUrl.length > 300000) {
+           console.warn('Logo too large, clearing to avoid firebase limits');
+           parsed.logoUrl = '';
+           localStorage.setItem('corpgastos_company', JSON.stringify(parsed));
+        }
+        
         return {
           ...parsed,
           cuentasOrigenDisponibles: (parsed.cuentasOrigenDisponibles || []).filter(
@@ -145,7 +158,14 @@ export default function App() {
     const saved = localStorage.getItem('corpgastos_surplus_expenses');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: SurplusExpenseItem[] = JSON.parse(saved);
+        parsed.forEach(s => {
+           if (s.comprobanteUrl && s.comprobanteUrl.length > 300000) {
+              s.comprobanteUrl = '';
+           }
+        });
+        localStorage.setItem('corpgastos_surplus_expenses', JSON.stringify(parsed));
+        return parsed;
       } catch (e) {}
     }
     return [];

@@ -82,16 +82,16 @@ export const CompanySettingsModal: React.FC<CompanySettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
+      try {
+        const base64 = await compressImage(file, 400, 400, 0.8);
         setPreviewLogo(base64);
         setFormData((prev) => ({ ...prev, logoUrl: base64 }));
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+      }
     }
   };
 

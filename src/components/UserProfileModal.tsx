@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, UserIcon, Shield, UploadCloud, Link as LinkIcon, Edit2, CheckCircle2, Lock, Eye, EyeOff } from 'lucide-react';
+import { compressImage } from '../lib/imageUtils';
 import type { User } from '../types';
 
 interface UserProfileModalProps {
